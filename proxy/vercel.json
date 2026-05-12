@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "functions": {
+    "api/radar.js": {
+      "memory": 512,
+      "maxDuration": 10
+    }
+  }
+}

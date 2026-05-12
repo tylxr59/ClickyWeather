@@ -1,0 +1,300 @@
+# TouchWeather — Friction Log
+
+Notes from building a Pebble watchapp targeting **emery** (Pebble Time 2, 200×228 rect)
+and **gabbro** (Pebble Round 2, 260×260 round) with the 2026 Pebble SDK.
+Captured for future Pebble projects so we don't relearn the same lessons.
+
+---
+
+## SDK / toolchain
+
+- **Active SDK matters.** `pebble --version` shows `(active SDK: vX)`. Switch with
+  `pebble sdk activate <version>`. Always check before debugging "missing API"
+  errors — older SDKs silently lack newer headers (e.g. `touch_service_*`
+  appeared in 4.9.169 for gabbro).
+- **Touch API is gabbro-only**, not in the basalt/aplite/emery headers. Guard
+  with `#if defined(PBL_TOUCH)`. The signature is:
+  ```c
+  typedef struct TouchEvent { TouchEventType type:8; int16_t x; int16_t y; } TouchEvent;
+  void touch_service_subscribe(TouchServiceHandler handler, void *context);
+  // handler is: void (*)(const TouchEvent *event, void *context)
+  ```
+  Older docs reference `TouchEventInfo` / `event.position` — those don't exist.
+- **UPDATE (SDK 4.9.169, May 2026):** the "gabbro-only" claim above is no
+  longer true. Both **emery** and **gabbro** ship real `touch_service_*`
+  prototypes in their `pebble.h` and define `PBL_TOUCH` at build time
+  (`flint` does too). Aplite/basalt/chalk/diorite still stub the calls
+  to `(0)`. So `#if defined(PBL_TOUCH)` is still the right guard, it just
+  enables more platforms now. Pull-down gestures, taps, etc. work on
+  Pebble Time 2 hardware.
+- `TouchEventType` has only 3 members: `TouchEvent_Touchdown`,
+  `TouchEvent_Liftoff`, `TouchEvent_PositionUpdate`. There is no
+  higher-level swipe/drag recognizer — implement gestures yourself by
+  tracking dx/dy from Touchdown to Liftoff.
+- **Find the real types:** `~/Library/Application Support/Pebble SDK/SDKs/current/sdk-core/pebble/<platform>/include/pebble.h`
+  is the source of truth. Grep it before guessing.
+- **`pebble emu-app-config`** throws a Python traceback in pebble-tool 5.0.34.
+  Test config flow on hardware, or via `Pebble.openURL(clay.generateUrl())` in a
+  browser dev-tools session against `http://localhost:62604`.
+
+## Emulator quirks (the hours-eater)
+
+- **`pebble install --emulator <plat>` will hang indefinitely** if the emulator
+  process gets orphaned by a parent shell exit. Symptom: `libpebble2.exceptions.TimeoutError`
+  or `ConnectionResetError [Errno 54]` on the next command.
+- **Fix:** start the emulator detached so it survives:
+  ```bash
+  nohup pebble install --emulator gabbro > /tmp/install.log 2>&1 &
+  disown
+  ```
+  Then run screenshots / button presses normally. Don't background-and-wait
+  inside an interactive `&&` chain — the websocket dies when the foreground
+  command finishes.
+- **Hard kill when stuck:** `pebble kill` is unreliable. Use:
+  ```bash
+  pkill -9 -f qemu-pebble; pkill -9 -f pypkjs; pkill -f "pebble install"
+  ```
+- **macOS doesn't ship `timeout(1)`.** Use `(cmd & PID=$!; sleep N; kill -0 $PID && kill -9 $PID)`
+  pattern instead.
+- **Screenshots:** `pebble screenshot --no-open` avoids opening Preview every
+  time. `--vnc` is only needed in headless Linux/CI.
+- **Headless guidance from CLAUDE.md** about `--vnc` does **not** apply to
+  macOS desktop runs. Skip it locally.
+- **Real device is often faster than the emulator for iteration.** Use:
+  ```bash
+  pebble build && pebble install --phone 192.168.86.33
+  ```
+  Connects over local WiFi (phone and watch must both be on same network). Much
+  more reliable than the emulator for touch, Clay config, and theme flows that
+  are impossible to test in `qemu-pebble`. Clay round-trip in particular
+  requires real hardware — `pebble emu-app-config` throws a Python traceback.
+- **Emulator button ordering for navigation testing:** `click down` advances to
+  the next card (DOWN navigates forward), `click up` goes back. SELECT toggles
+  whatever you've wired it to (we use it for theme). Script all 5 screenshots
+  in one shell pipeline after install.
+
+## Graphics / drawing
+
+- **Round vs rectangular** is huge. Always use `PBL_IF_ROUND_ELSE(round, rect)`
+  for y-positions of headers, banners, and bottom rows. The page indicator
+  needs to sit above the bezel curve — `y = 224` works on gabbro (260px tall).
+- **`graphics_fill_radial`** is the right tool for half-discs and arc gauges:
+  ```c
+  graphics_fill_radial(ctx, rect, GOvalScaleModeFitCircle, thickness,
+                       DEG_TO_TRIGANGLE(-90), DEG_TO_TRIGANGLE(90));
+  ```
+  Don't try to draw arcs by lots of `graphics_draw_line` segments — slow and
+  ugly. Use `DEG_TO_TRIGANGLE`, not raw `TRIG_MAX_ANGLE` math, for arc bounds.
+- **`graphics_fill_circle` ≠ half-circle.** For sunrise/sunset, mask with
+  `graphics_fill_radial` from -90° to +90° instead of clipping rects.
+- **`set_stroke_width`** persists across draw calls. Reset it at the top of
+  each icon function or you'll get random thick lines later.
+- **Antialiasing:** call `graphics_context_set_antialiased(ctx, true);` once.
+  Big difference on circles and rays.
+- **Drawing arrows:** "vertical shaft + chevron arms from the tip". Naive
+  3-line "Y" shapes look wrong — confirm both lines start at the *tip*, not
+  the center.
+- **`GColorChromeYellow` ≈ #FFAA00** (Pebble orange). `GColorVividCerulean` ≈
+  #00AAFF (Pebble blue). These are the canonical accent colors for the 2026
+  design language. The 64-color palette is severely limited; pick from
+  https://developer.repebble.com/guides/tools-and-resources/color-picker before
+  guessing color names.
+- **Half-radial gauge pattern (UV / AQI):** same code, just change the input
+  range. UV: 0–16 → 0°–180°. AQI: 0–300 → 0°–180°. Center the containing
+  rect so the flat edge of the half-disc sits on a horizontal baseline — users
+  read it like a speedometer. A filled `thickness=10` ring is more legible than
+  a thin stroke.
+- **Bar charts with zero-value columns:** don't draw a full-height empty bar
+  and don't silently skip the column. Draw a short muted baseline stroke (2px)
+  so the column position is still visible, then draw the real fill only when
+  `pct > 0`. This avoids the "missing bars" bug that comes from applying a
+  minimum-height floor to all bars (the floor creates phantom bars at zero).
+- **Labels above bars:** only show a % label when `pct >= 10` to avoid
+  collision with adjacent labels at small values. Truncate to integer; the
+  "%" suffix is enough context.
+
+## Layout
+
+- **Card pattern:** one Window owns a `card_layer` (full bounds) + a thin
+  `indicator_layer` for the page dots. Each card is a single `CardDrawFn`
+  function — no per-card lifecycle. Switching cards = `layer_mark_dirty`. This
+  was simpler and faster than per-card layer trees.
+- **Active page-indicator pill** = 16w × 4h, radius 2. Inactive dots = 4×4.
+  Gap = 6. Centered horizontally. Cleaner than 5 equal-size dots.
+- **Symmetric horizontal margins are critical.** Define a single `UI_MARGIN_X`
+  constant (`PBL_IF_ROUND_ELSE(20, 12)`) and apply it to every left AND right
+  gutter on every card. Without this, cards look off-center because "left margin
+  = right margin" was not enforced and visual balance breaks when font sizes
+  change. A single constant guarantees consistency across all screens.
+- **Use constants for all shared layout values.** `UI_HEADER_Y`,
+  `UI_HEADER_HEIGHT`, `UI_MARGIN_X` in a shared `ui.h` — then every card can
+  position its content body at `header_y + UI_HEADER_HEIGHT + gap` without
+  hardcoding offsets that drift when you resize the header font.
+- **Header icon sizing matters.** A 20px icon next to `GOTHIC_18_BOLD` text is
+  slightly tight; 22–24px feels natural. Pass `icon_size` as a parameter to
+  the icon draw function rather than hardcoding in each card.
+- **Round display top padding:** round has significantly more wasted corners,
+  so `UI_HEADER_Y` should be ~24 vs ~8 on rect. Same rule applies to the page
+  indicator and bottom banners — `pad_bottom = PBL_IF_ROUND_ELSE(40, 22)`.
+- **Rain banner** at bottom of card 0: orange pill, `banner_h=22`,
+  `banner_w=PBL_IF_ROUND_ELSE(130,140)`, `pad_bottom=PBL_IF_ROUND_ELSE(40,22)`.
+  The round needs more bottom padding to clear the bezel.
+- **Rotating status banner:** to show two messages in the same screen slot
+  (e.g. "RAIN IN 15MIN" and "UPDATED 3M AGO") without extra space, flip between
+  them using the animation tick counter: `if (frame % 40 < 20) { show A } else
+  { show B }`. At 100ms/frame, that's a 2s on / 2s off cycle — readable.
+  Only redraw on the transition frame to avoid unnecessary CPU: `if (frame % 20 == 0) nav_redraw()`.
+- **Fonts in stock SDK** that worked well:
+  - `FONT_KEY_LECO_42_NUMBERS` — big temperature digits
+  - `FONT_KEY_GOTHIC_18_BOLD` — Hi/Lo, headers, wind/humidity labels
+  - `FONT_KEY_GOTHIC_28_BOLD` — sunrise/sunset times
+  - `FONT_KEY_GOTHIC_14_BOLD` — bar-chart hour labels, secondary info
+
+## AppMessage / PKJS / Clay
+
+- **Declare every key** in `package.json` `messageKeys`. The build generates
+  `MESSAGE_KEY_*` C macros automatically — no manual numbering.
+- **`app_message_open(1024, 256)`** — round up the inbox to fit the largest
+  bundle (we send ~22 keys at once for full weather).
+- **Never `strncpy(dst, t->value->cstring, sizeof(dst))` without manually
+  zero-terminating** — `strncpy` does NOT null-terminate when the source is
+  longer than `n`. Always:
+  ```c
+  strncpy(d->wind_dir, t->value->cstring, sizeof(d->wind_dir) - 1);
+  d->wind_dir[sizeof(d->wind_dir) - 1] = '\0';
+  ```
+- **Persist cache.** Save `WeatherData` struct as a single blob via
+  `persist_write_data(KEY, &data, sizeof(data))` so the watch shows last-known
+  values immediately on launch instead of empty fields while PKJS fetches.
+- **CRITICAL: Bump persist key when struct layout changes.** If you add,
+  remove, or reorder any field in a persisted struct, the old blob on disk will
+  be deserialized with misaligned fields — silent corruption. Increment the
+  `PERSIST_KEY_WEATHER` constant by 1 any time the struct changes. The stale
+  blob is silently ignored (persist_read returns 0), so the app falls back to
+  zeroed/default values and re-fetches cleanly.
+- **Clay v2** (`@rebble/clay` package, install via `pebble package install`):
+  - `new Clay(config, null, { autoHandleEvents: false })` if you need a custom
+    `webviewclosed` flow (we did, to persist `units` to localStorage *and*
+    forward to the watch).
+  - `clay.getSettings(e.response, false)` returns the raw key/value object;
+    `clay.getSettings(e.response)` returns a watch-ready dict for
+    `Pebble.sendAppMessage`.
+- **Clay radiogroup string values come as `TUPLE_CSTRING`, not `TUPLE_INT`.**
+  If you put `value: "0"` / `value: "1"` in your Clay config (which is the
+  norm), the AppMessage tuple arrives with `t->type == TUPLE_CSTRING` and
+  the value is in `t->value->cstring`. Reading `t->value->int32` silently
+  returns 0 — which is why "Dark" never seemed to apply. Handle both:
+  ```c
+  int v = (t->type == TUPLE_CSTRING) ? atoi(t->value->cstring)
+                                     : (int)t->value->int32;
+  ```
+  Also note `t->value->cstring` is a flexible array member (`char cstring[0]`),
+  so `&& t->value->cstring` is a `-Werror=address` warning under
+  arm-none-eabi-gcc 14 ("comparison of address of flexible array will always
+  evaluate to true"). Drop the null check entirely — flexible array members
+  can't be null.
+- **Theme / dark mode window update:** applying a new background color only to
+  the window doesn't automatically redraw it. Keep a static `Window *` in
+  `theme.c` and call both `window_set_background_color` AND
+  `layer_mark_dirty(window_get_root_layer(win))` from `theme_set`. Register the
+  window once via `theme_apply_to_window(win)` in `prv_window_load`. This
+  ensures SELECT (or Clay config) instantly repaints without extra wiring in
+  every callsite.
+- **Open-Meteo** is a free, no-API-key weather source. Combine
+  `/v1/forecast` (current + hourly + daily) with `/v1/air-quality` for AQI.
+  Use `temperature_unit` and `wind_speed_unit` query params for unit handling
+  rather than converting client-side.
+- **Geolocation** in PKJS: `navigator.geolocation.getCurrentPosition` works in
+  the simulator (returns SF coords) and on real phones. Always provide a
+  fallback location for when the user denies permission.
+- **Open-Meteo `forecast_hours=N`** does NOT slice the hourly array starting
+  at the current hour the way the docs imply when combined with
+  `forecast_days`. Safer pattern: fetch `forecast_days=2` (so you have a
+  full day's worth even at 11pm), then walk `hourly.time[]` to find an
+  entry matching `YYYY-MM-DDTHH:00` for the current hour and slice from
+  there. Otherwise the precip bars start at midnight.
+- **"Last updated" timestamp:** the most reliable approach is to have the PKJS
+  side send `Date.now() / 1000` (unix seconds) as an AppMessage key
+  (`LastUpdated`). On the C side, store it in `WeatherData.last_updated`
+  (uint32_t). Then display `(time(NULL) - last_updated) / 60` minutes elapsed
+  in a status banner. Persists across restarts automatically since it's in the
+  cached blob.
+
+## Animation
+
+- **`app_timer_register(ms, cb, ctx)`** is the simplest periodic animation
+  primitive. Re-register from inside the callback for a repeating timer.
+- **Only redraw when the animated card is visible.** Saved CPU and battery —
+  guard with `if (nav_current_index() == 0) nav_redraw();`. The other 4 cards
+  are static, so they cost nothing.
+- **100ms frame rate** is plenty smooth for primitive-drawn icons and easy on
+  the battery. Anything faster wastes power.
+- **Animate offsets, not whole frames.** Sin-bob via `sin_lookup` against a
+  short cyclic counter (e.g. `frame % 32`) is cheap and looks natural.
+- **Refresh-on-open via delayed timer.** Don't call `comm_request_refresh()`
+  synchronously in `prv_window_load` — the AppMessage channel isn't fully
+  ready that early. Register a 750ms one-shot timer instead:
+  ```c
+  app_timer_register(750, prv_initial_refresh, NULL);
+  ```
+  This gives the window time to fully paint before the JS side wakes up.
+- **Touch gestures (pull-down to refresh):** track `(start_x, start_y)` on
+  `TouchEvent_Touchdown`, then on `TouchEvent_Liftoff` compute
+  `dx = x - start_x`, `dy = y - start_y`. Treat it as a downward swipe if
+  `dy > 60 && abs(dy) > abs(dx)`. Horizontal threshold ~30px prevents false
+  fires on diagonal swipes. No SDK helper for this — build it yourself.
+
+## Build / project
+
+- **Glob source files** in `wscript` (default Pebble template already does):
+  `ctx.path.ant_glob('src/c/**/*.c')`. Adding a new card = drop a `.c` in
+  `src/c/cards/` and `nav_register` it. No wscript edits needed.
+- **`#pragma once`** works fine across all targets — no need for include
+  guards.
+- **`PBL_IF_ROUND_ELSE`** evaluates at compile time per target. The same
+  source file is compiled twice (once per platform); don't worry about
+  runtime branching cost.
+- **`watchapp.watchface=false`** in package.json makes it an app (back button
+  exits). Default scaffold is `true` (watchface).
+- **`capabilities: ["configurable"]`** is required for Clay to even appear in
+  the phone app's settings menu.
+
+## Misc gotchas
+
+- **`pebble screenshot` blocks indefinitely** if the emulator's pypkjs proxy
+  has died but qemu is still running. Symptom: command never returns.
+  Workaround: kill both processes and reinstall.
+- **Pebble's compiler is `arm-none-eabi-gcc 14.2.1`.** Standard C99/C11. No
+  `<stdbool.h>` issues but watch out for VLA usage on small stacks.
+- **App memory cap:** 128 KB total RAM. We finished at ~10 KB footprint with
+  120 KB free heap — room to spare for animated APNG resources or larger
+  caches.
+- **Resources cap:** 256 KB pbpack, 256 resource entries. APNG hero icons
+  would fit easily but we ended up not needing them since primitives looked
+  great and animate cheaper.
+
+## Things that *didn't* work / dead ends
+
+- Tried `pebble emu-app-config` — Python traceback in this tool version.
+  Skipped, used hardware Clay flow.
+- `forecast_hours=5` to get next-5-hour precip forecast — seemed right but
+  returns an array starting at midnight, not the current hour. Replaced with
+  `forecast_days=2` + manual time-array walk (see AppMessage / PKJS section).
+- Applying a minimum bar height (e.g. 4% floor) to bar charts so all bars are
+  always visible — creates phantom bars for 0% rain probability, making the
+  chart look wrong on clear days. Use a 2px muted baseline stroke for true
+  zero values instead.
+- Wiring theme to `window_set_background_color` alone without `layer_mark_dirty`
+  — old background shows until next redraw event. Must force redraw immediately.
+- Null-checking `t->value->cstring` before calling `atoi` — causes a
+  `-Werror=address` build failure under gcc 14 (flexible array member address
+  is never null by definition). Just call `atoi` directly.
+- Tried drawing half-suns by stacking a filled circle + a white-filled rect to
+  mask the bottom half. Looked OK in light mode, broken in dark mode. Use
+  `graphics_fill_radial` from -90° to +90° instead.
+- Tried original `draw_chevron` helper — produced Y-shaped arrows. Replaced
+  with explicit shaft + two arm lines.
+- Tried `pebble kill` to fix stuck emulator — usually has no effect. `pkill -9`
+  the qemu-pebble and pypkjs processes by name instead.
+- Tried backgrounding `pebble install` inside an `&&` chain — emulator dies
+  when the wrapper exits. Always use `nohup ... & disown`.
