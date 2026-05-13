@@ -13,6 +13,10 @@
 //
 // Endpoint:  GET /api/radar?lat=<f>&lon=<f>[&format=base64][&debug=...]
 //
+// Auth: if the RADAR_SECRET environment variable is set, all requests must
+// include a matching ?key= query parameter or they receive HTTP 401.
+// Set RADAR_SECRET in the Vercel project dashboard (not in source).
+//
 // Response headers:
 //   X-Radar-Time: unix seconds of the radar frame used
 //   Cache-Control: public, max-age=300
@@ -276,6 +280,14 @@ async function makeRadarLayer(idx, frame, lon, lat, log) {
 }
 
 module.exports = async (req, res) => {
+  // Optional shared-secret auth. Set RADAR_SECRET in the Vercel dashboard;
+  // omit the env var entirely to run without auth (e.g. local dev / forks).
+  const secret = process.env.RADAR_SECRET;
+  if (secret && req.query.key !== secret) {
+    res.status(401).send('unauthorized');
+    return;
+  }
+
   const debug = req.query.debug;
   const diag = { steps: [] };
   const log = (s, extra) => diag.steps.push(extra ? { s, ...extra } : { s });
@@ -284,6 +296,10 @@ module.exports = async (req, res) => {
     const lon = parseFloat(req.query.lon);
     if (!isFinite(lat) || !isFinite(lon)) {
       res.status(400).send('lat/lon required');
+      return;
+    }
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      res.status(400).send('lat/lon out of range');
       return;
     }
     log('parsed', { lat, lon });

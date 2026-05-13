@@ -365,6 +365,9 @@ function locateAndFetch() {
 // ----------------------------------------------------------------------
 
 var RADAR_CHUNK_SIZE = 1500;
+// Set this to your deployed Vercel proxy URL.
+// If you configured RADAR_SECRET on the server, append ?key=<your-secret> here.
+// See DEVELOPMENT_SETUP.md for instructions on restoring the key for local development.
 var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar';
 
 // Hand-rolled base64 decoder for PKJS runtimes lacking `atob`.
