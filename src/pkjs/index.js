@@ -452,11 +452,11 @@ var RADAR_CHUNK_SIZE = 1500;
 // If you configured RADAR_SECRET on the server, append ?key=<your-secret> here.
 // Example: 'https://your-proxy.vercel.app/api/radar?key=abc123'
 // NOTE: remove the ?key=... before committing to the repo.
-var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar';
+var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar?key=REDACTED';
 
 // Pollen proxy shares the same Vercel project + RADAR_SECRET auth key
 // as the radar endpoint, so the URL differs only in the /api path.
-var POLLEN_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/pollen';
+var POLLEN_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/pollen?key=REDACTED';
 
 // Pollen is throttled to one proxy fetch per 6 hours per device.
 // Between fetches the last known level is re-sent from localStorage so

@@ -63,10 +63,13 @@ static void prv_free_bitmap(void) {
 
 static void prv_request_if_needed(void) {
   uint32_t now = (uint32_t)time(NULL);
-  // Avoid hammering the proxy: 60s cooldown between requests. The
-  // proxy itself caches for 5 min, so this is just to silence
-  // accidental rapid re-entry while the card is in IDLE/LOADING.
-  if (s_last_request_secs && (now - s_last_request_secs) < 60) return;
+  // Avoid hammering the proxy: 240s cooldown between auto-requests.
+  // Aligned just under the proxy's 300s Cache-Control TTL so a normal
+  // user navigating in/out of the radar card never re-hits the upstream
+  // (and never counts against the Vercel WAF rate limit window).
+  // Force-refresh (SELECT button) bypasses this — see
+  // card_radar_force_refresh below.
+  if (s_last_request_secs && (now - s_last_request_secs) < 240) return;
   s_last_request_secs = now;
   s_state = RADAR_LOADING;
   s_chunks_received = 0;
