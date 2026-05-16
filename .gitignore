@@ -14,4 +14,12 @@ friction.log
 # Pebble emulator lock files
 .lock-waf_*
 .wafpickle-*
+
+# Secrets / env files
+.env
+.env.*
+*.env.local
+
+# Screenshots from local testing (keep repo screenshots/ folder)
+/screenshot*.png
 # *.png - removing to allow menu icons and other resources to be committed
