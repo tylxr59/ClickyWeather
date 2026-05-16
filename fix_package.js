@@ -5,7 +5,8 @@ text = text.replace(/"resources":[\s\S]*\}\s*\}\s*\}/, `"resources": {
       {
         "type": "bitmap",
         "name": "IMAGE_MENU_ICON",
-        "file": "images/menu_icon.png"
+        "file": "images/menu_icon.png",
+        "menuIcon": true
       }
     ]
   }
