@@ -80,10 +80,12 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   graphics_context_set_stroke_width(ctx, 1);
   graphics_draw_line(ctx, GPoint(ox + W/2, row_y), GPoint(ox + W/2, row_y + 32));
 
-  // Wind (left column).
+  // Wind (left column). Speed unit follows the user's selected system.
   icon_draw_wind(ctx, GPoint(ox + W/4, row_y + 8), 22, theme_fg());
   char wind_buf[16];
-  snprintf(wind_buf, sizeof(wind_buf), "%dMPH %s", d->wind_speed, d->wind_dir);
+  const char *wind_unit = (d->units == UNITS_METRIC) ? "KMH" : "MPH";
+  snprintf(wind_buf, sizeof(wind_buf), "%d%s %s",
+           d->wind_speed, wind_unit, d->wind_dir);
   graphics_context_set_text_color(ctx, theme_fg());
   graphics_draw_text(ctx, wind_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
@@ -91,10 +93,15 @@ void card_main_draw(GContext *ctx, GRect bounds) {
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 
-  // Humidity (right column).
+  // Humidity / dew point (right column). User can toggle which one
+  // appears via the Clay "Show dew point" switch.
   icon_draw_droplet(ctx, GPoint(ox + W*3/4, row_y + 8), 18, theme_accent_blue());
   char hum_buf[8];
-  snprintf(hum_buf, sizeof(hum_buf), "%d%%", d->humidity);
+  if (d->use_dew_point) {
+    snprintf(hum_buf, sizeof(hum_buf), "%d°", d->dew_point);
+  } else {
+    snprintf(hum_buf, sizeof(hum_buf), "%d%%", d->humidity);
+  }
   graphics_draw_text(ctx, hum_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                      GRect(ox + W/2, row_y + 16, W/2, 22),

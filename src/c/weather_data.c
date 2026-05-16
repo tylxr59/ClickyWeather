@@ -12,6 +12,8 @@ void weather_data_init_mock(void) {
   s_data.wind_speed = 12;
   strncpy(s_data.wind_dir, "NW", sizeof(s_data.wind_dir));
   s_data.humidity = 15;
+  s_data.dew_point = 52;
+  s_data.use_dew_point = false;
   s_data.precip[0] = 25;
   s_data.precip[1] = 90;
   s_data.precip[2] = 65;
@@ -70,6 +72,9 @@ void weather_data_init_mock(void) {
   strncpy(s_data.gold_am, "6:14 AM", sizeof(s_data.gold_am));
   strncpy(s_data.gold_pm, "7:32 PM", sizeof(s_data.gold_pm));
   strncpy(s_data.blue_pm, "8:18 PM", sizeof(s_data.blue_pm));
+
+  // Pollen unknown until PKJS proxy responds; -1 hides the badge.
+  s_data.pollen_level = -1;
 }
 
 WeatherData *weather_data_get(void) { return &s_data; }

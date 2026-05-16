@@ -25,6 +25,8 @@ typedef struct {
   int wind_speed;      // mph or km/h
   char wind_dir[4];    // "NW", "ENE", etc.
   int humidity;        // %
+  int dew_point;       // °F or °C (matches `units`)
+  bool use_dew_point;  // true → main card shows dew point instead of humidity
   int precip[5];       // 0..100 % for now / +1h / +2h / +3h / +4h
   int uv;              // 0..11+
   int aqi;             // US AQI 0..500
@@ -72,6 +74,11 @@ typedef struct {
   char    gold_am[10];
   char    gold_pm[10];
   char    blue_pm[10];
+
+  // Pollen severity 0..5 (Google Pollen API UPI scale), max of
+  // grass/tree/weed indexes. -1 means "unknown / not covered" — the
+  // air quality card should skip the pollen badge in that case.
+  int pollen_level;
 } WeatherData;
 
 void weather_data_init_mock(void);

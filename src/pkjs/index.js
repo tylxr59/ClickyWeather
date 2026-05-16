@@ -68,6 +68,57 @@ function getUnits() {
   return localStorage.getItem('units') === 'metric' ? 'metric' : 'imperial';
 }
 
+function getUseDewPoint() {
+  return localStorage.getItem('useDewPoint') === '1';
+}
+
+// Returns true when coordinates are within continental Europe + UK +
+// Scandinavia. Open-Meteo CAMS pollen data is reliable inside this box;
+// outside it we fall back to the Google Pollen proxy.
+function isEurope(lat, lon) {
+  return lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45;
+}
+
+// Convert Open-Meteo pollen values (grains/m³) to the 0-5 UPI-style
+// scale used by the Google Pollen API, using European Aeroallergen
+// Network (EAN) category thresholds per pollen type. Returns -1 when
+// all inputs are null (region not covered by CAMS).
+//
+// EAN bands (grains/m³) used here, normalized to the Google UPI 0..5
+// scale (0=None, 1=Very Low, 2=Low, 3=Moderate, 4=High, 5=Very High):
+//   Grass:   0 | 1-5   | 6-20  | 21-50  | 51-200 | >200
+//   Tree:    0 | 1-15  | 16-50 | 51-100 | 101-300| >300  (birch/alder)
+//   Weed:    0 | 1-5   | 6-15  | 16-50  | 51-200 | >200  (ragweed/mugwort)
+function pollenGrainsToUpi(grass, birch, alder, ragweed, mugwort, olive) {
+  function grassScale(v)   {
+    if (v === null || v === undefined) return -1;
+    if (v <= 0)   return 0; if (v <= 5)   return 1;
+    if (v <= 20)  return 2; if (v <= 50)  return 3;
+    if (v <= 200) return 4; return 5;
+  }
+  function treeScale(v) {
+    if (v === null || v === undefined) return -1;
+    if (v <= 0)   return 0; if (v <= 15)  return 1;
+    if (v <= 50)  return 2; if (v <= 100) return 3;
+    if (v <= 300) return 4; return 5;
+  }
+  function weedScale(v) {
+    if (v === null || v === undefined) return -1;
+    if (v <= 0)   return 0; if (v <= 5)   return 1;
+    if (v <= 15)  return 2; if (v <= 50)  return 3;
+    if (v <= 200) return 4; return 5;
+  }
+  var vals = [
+    grassScale(grass), treeScale(birch),   treeScale(alder),
+    weedScale(ragweed), weedScale(mugwort), grassScale(olive),
+  ];
+  var max = -1;
+  for (var i = 0; i < vals.length; i++) {
+    if (vals[i] > max) max = vals[i];
+  }
+  return max;
+}
+
 // Phase 11: Golden / Blue hour computation.
 //
 // Compact port of Vladimir Agafonkin's SunCalc (BSD-2). Computes sun
@@ -201,7 +252,7 @@ function fetchWeather(lat, lon) {
 
   var fc = 'https://api.open-meteo.com/v1/forecast' +
     '?latitude=' + lat + '&longitude=' + lon +
-    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m' +
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m' +
     '&hourly=temperature_2m,weather_code,precipitation_probability' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
     '&temperature_unit=' + tempUnit +
@@ -210,12 +261,16 @@ function fetchWeather(lat, lon) {
 
   var aq = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
     '?latitude=' + lat + '&longitude=' + lon +
-    '&current=us_aqi&timezone=auto';
+    // Always request pollen fields. CAMS covers Europe; outside that
+    // region the fields return null and we fall back to Google.
+    '&current=us_aqi,grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen' +
+    '&timezone=auto';
 
   xhr(fc, function(err, data) {
     if (err) { console.log('forecast err: ' + err.message); return; }
     xhr(aq, function(_e2, aqd) {
       var msg = {};
+      var gotPollenFromOpenMeteo = false;
       try {
         var cur = data.current || {};
         var daily = data.daily || {};
@@ -223,6 +278,8 @@ function fetchWeather(lat, lon) {
         msg.Temp = Math.round(cur.temperature_2m);
         msg.FeelsLike = Math.round(cur.apparent_temperature);
         msg.Humidity = Math.round(cur.relative_humidity_2m);
+        msg.DewPoint = Math.round(cur.dew_point_2m);
+        msg.UseDewPoint = getUseDewPoint() ? 1 : 0;
         msg.Wind = Math.round(cur.wind_speed_10m);
         msg.WindDir = degToCompass(cur.wind_direction_10m || 0);
         msg.Condition = mapWeatherCode(cur.weather_code);
@@ -271,6 +328,12 @@ function fetchWeather(lat, lon) {
         msg.Units = units === 'metric' ? 1 : 0;
         msg.LastUpdated = Math.floor(Date.now() / 1000);
 
+        // Pollen — hybrid strategy:
+        //   Europe  → use Open-Meteo CAMS fields already in the AQ
+        //             response (free, no quota, zero extra requests).
+        //   Elsewhere → fetchPollen() calls the Google proxy after send.
+        // `gotPollenFromOpenMeteo` is declared outside try so the
+        // sendAppMessage callback can read it.
         // Phase 10A: Next 6 Hours (offsets +1h..+6h from current hour).
         var temps = hourly.temperature_2m || [];
         var codes = hourly.weather_code || [];
@@ -327,12 +390,32 @@ function fetchWeather(lat, lon) {
         msg.GoldAm = gh.GoldAm;
         msg.GoldPm = gh.GoldPm;
         msg.BluePm = gh.BluePm;
+
+        // Attempt Open-Meteo pollen (Europe only). If successful, skip
+        // the Google proxy call entirely for this request.
+        if (isEurope(lat, lon) && aqd && aqd.current) {
+          var aqc = aqd.current;
+          var euUpi = pollenGrainsToUpi(
+            aqc.grass_pollen,  aqc.birch_pollen,  aqc.alder_pollen,
+            aqc.ragweed_pollen, aqc.mugwort_pollen, aqc.olive_pollen
+          );
+          if (euUpi >= 0) {
+            msg.PollenLevel = euUpi;
+            gotPollenFromOpenMeteo = true;
+          }
+        }
       } catch (e) {
         console.log('parse err: ' + e.message);
         return;
       }
       Pebble.sendAppMessage(msg,
-        function() { console.log('weather sent'); },
+        function() {
+          console.log('weather sent');
+          // Only call Google proxy for non-European locations.
+          if (!gotPollenFromOpenMeteo) {
+            fetchPollen(lat, lon);
+          }
+        },
         function(e) { console.log('send fail: ' + JSON.stringify(e)); }
       );
     });
@@ -367,8 +450,57 @@ function locateAndFetch() {
 var RADAR_CHUNK_SIZE = 1500;
 // Set this to your deployed Vercel proxy URL.
 // If you configured RADAR_SECRET on the server, append ?key=<your-secret> here.
-// See DEVELOPMENT_SETUP.md for instructions on restoring the key for local development.
-var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar';
+// Example: 'https://your-proxy.vercel.app/api/radar?key=abc123'
+// NOTE: remove the ?key=... before committing to the repo.
+var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar?key=REDACTED_OLD_KEY';
+
+// Pollen proxy shares the same Vercel project + RADAR_SECRET auth key
+// as the radar endpoint, so the URL differs only in the /api path.
+var POLLEN_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/pollen?key=REDACTED_OLD_KEY';
+
+// Pollen is throttled to one proxy fetch per 6 hours per device.
+// Between fetches the last known level is re-sent from localStorage so
+// the watch always receives an up-to-date (or recently cached) value
+// without burning Google API quota on every weather refresh.
+var POLLEN_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function fetchPollen(lat, lon) {
+  var now = Date.now();
+  var lastFetch = parseInt(localStorage.getItem('pollenFetchedAt') || '0', 10);
+  var cachedLevel = parseInt(localStorage.getItem('pollenLevel') || '-1', 10);
+
+  // If we have a recent cached value, send it immediately and skip the
+  // proxy call entirely — saves both Vercel bandwidth and Google quota.
+  if (now - lastFetch < POLLEN_TTL_MS && lastFetch > 0) {
+    console.log('pollen cached: ' + cachedLevel);
+    Pebble.sendAppMessage({ PollenLevel: cachedLevel },
+      function() {},
+      function(e) { console.log('pollen (cached) send fail: ' + JSON.stringify(e)); }
+    );
+    return;
+  }
+
+  var sep = POLLEN_PROXY_URL.indexOf('?') >= 0 ? '&' : '?';
+  var url = POLLEN_PROXY_URL + sep + 'lat=' + lat + '&lon=' + lon;
+  xhr(url, function(err, data) {
+    if (err) {
+      console.log('pollen err: ' + err.message);
+      // On failure, still send the last known cached value so the watch
+      // isn't stuck waiting. Don't update the timestamp so we retry sooner.
+      if (lastFetch > 0) {
+        Pebble.sendAppMessage({ PollenLevel: cachedLevel }, function() {}, function() {});
+      }
+      return;
+    }
+    var level = (data && typeof data.level === 'number') ? data.level : -1;
+    localStorage.setItem('pollenLevel', String(level));
+    localStorage.setItem('pollenFetchedAt', String(now));
+    Pebble.sendAppMessage({ PollenLevel: level },
+      function() { console.log('pollen sent: ' + level); },
+      function(e) { console.log('pollen send fail: ' + JSON.stringify(e)); }
+    );
+  });
+}
 
 // Hand-rolled base64 decoder for PKJS runtimes lacking `atob`.
 function decodeBase64(s) {
@@ -523,7 +655,15 @@ Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) return;
   var dict = clay.getSettings(e.response, false);
   if (dict.Units !== undefined) {
-    localStorage.setItem('units', dict.Units.value === 1 ? 'metric' : 'imperial');
+    // Clay radiogroup values come back as strings ("0"/"1"), so coerce
+    // before comparing. Prior versions used `=== 1` which always failed
+    // and silently pinned the app to imperial.
+    localStorage.setItem('units',
+      parseInt(dict.Units.value, 10) === 1 ? 'metric' : 'imperial');
+  }
+  if (dict.UseDewPoint !== undefined) {
+    localStorage.setItem('useDewPoint',
+      dict.UseDewPoint.value ? '1' : '0');
   }
   if (dict.LocationOverride !== undefined && dict.LocationOverride.value) {
     localStorage.setItem('locationOverride', dict.LocationOverride.value);

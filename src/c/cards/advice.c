@@ -7,6 +7,185 @@
 #include <stdio.h>
 #include <time.h>
 
+// Debug-only deterministic matrix case selector.
+//
+// Usage:
+//   Set TW_ADVICE_MATRIX_CASE to a non-zero case id (1..15) to force
+//   synthetic WeatherData for matrix validation. Keep at 0 for normal app.
+//
+// Case ids map to EDGE_CASE_MATRIX.md rows M01..M15.
+#ifndef TW_ADVICE_MATRIX_CASE
+#define TW_ADVICE_MATRIX_CASE 0
+#endif
+
+#if TW_ADVICE_MATRIX_CASE > 0
+typedef struct {
+  bool force_daytime_set;
+  bool force_daytime;
+  bool force_hour_set;
+  int force_hour;
+} AdviceDebugContext;
+
+static AdviceDebugContext s_debug_ctx;
+
+static const WeatherData *prv_effective_weather(const WeatherData *src,
+                                                WeatherData *scratch) {
+  *scratch = *src;
+  s_debug_ctx.force_daytime_set = false;
+  s_debug_ctx.force_daytime = false;
+  s_debug_ctx.force_hour_set = false;
+  s_debug_ctx.force_hour = 12;
+
+  switch (TW_ADVICE_MATRIX_CASE) {
+    case 1: // M01 stale packet
+      scratch->valid = true;
+      scratch->last_updated = (uint32_t)time(NULL) - (4u * 60u * 60u);
+      break;
+    case 2: // M02 invalid packet
+      scratch->valid = false;
+      break;
+    case 3: // M03 active storm
+      scratch->valid = true;
+      scratch->condition = COND_STORM;
+      scratch->rain_alert_min = -1;
+      break;
+    case 4: // M04 rain soon with wind
+      scratch->valid = true;
+      scratch->condition = COND_CLOUDY;
+      scratch->rain_alert_min = 10;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 40 : 25;
+      break;
+    case 5: // M05 rain now near freezing
+      scratch->valid = true;
+      scratch->condition = COND_RAIN;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 1 : 33;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 1 : 33;
+      break;
+    case 6: // M06 snow now
+      scratch->valid = true;
+      scratch->condition = COND_SNOW;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? -2 : 28;
+      break;
+    case 7: // M07 hot stress
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 34 : 95;
+      break;
+    case 8: // M08 cold stress
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 4 : 38;
+      break;
+    case 9: // M09 late-night cool fallback
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 12 : 53;
+      s_debug_ctx.force_hour_set = true;
+      s_debug_ctx.force_hour = 23;
+      s_debug_ctx.force_daytime_set = true;
+      s_debug_ctx.force_daytime = false;
+      break;
+    case 10: // M10 high wind only
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 18 : 66;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 18 : 66;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 36 : 23;
+      scratch->aqi = 40;
+      scratch->uv = 4;
+      scratch->humidity = 55;
+      break;
+    case 11: // M11 daytime severe UV
+      scratch->valid = true;
+      scratch->condition = COND_SUNNY;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 24 : 75;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 24 : 75;
+      scratch->uv = 10;
+      scratch->aqi = 40;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 12 : 7;
+      scratch->humidity = 50;
+      s_debug_ctx.force_daytime_set = true;
+      s_debug_ctx.force_daytime = true;
+      s_debug_ctx.force_hour_set = true;
+      s_debug_ctx.force_hour = 13;
+      break;
+    case 12: // M12 bad air and muggy
+      scratch->valid = true;
+      scratch->condition = COND_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->aqi = 140;
+      scratch->humidity = 85;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 27 : 80;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 24 : 75;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 12 : 7;
+      scratch->uv = 3;
+      break;
+    case 13: // M13 pleasant daytime mild
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 22 : 72;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 22 : 72;
+      scratch->aqi = 40;
+      scratch->uv = 4;
+      scratch->humidity = 55;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 14 : 9;
+      s_debug_ctx.force_daytime_set = true;
+      s_debug_ctx.force_daytime = true;
+      s_debug_ctx.force_hour_set = true;
+      s_debug_ctx.force_hour = 13;
+      break;
+    case 14: // M14 pleasant nighttime mild
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 18 : 64;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 18 : 64;
+      scratch->aqi = 40;
+      scratch->uv = 0;
+      scratch->humidity = 55;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 12 : 7;
+      s_debug_ctx.force_daytime_set = true;
+      s_debug_ctx.force_daytime = false;
+      s_debug_ctx.force_hour_set = true;
+      s_debug_ctx.force_hour = 23;
+      break;
+    case 15: // M15 pleasant daytime cool
+      scratch->valid = true;
+      scratch->condition = COND_PARTLY_CLOUDY;
+      scratch->rain_alert_min = -1;
+      scratch->temp = (scratch->units == UNITS_METRIC) ? 13 : 56;
+      scratch->feels_like = (scratch->units == UNITS_METRIC) ? 11 : 52;
+      scratch->aqi = 40;
+      scratch->uv = 4;
+      scratch->humidity = 55;
+      scratch->wind_speed = (scratch->units == UNITS_METRIC) ? 12 : 7;
+      s_debug_ctx.force_daytime_set = true;
+      s_debug_ctx.force_daytime = true;
+      s_debug_ctx.force_hour_set = true;
+      s_debug_ctx.force_hour = 13;
+      break;
+    default:
+      break;
+  }
+
+  return scratch;
+}
+#else
+static const WeatherData *prv_effective_weather(const WeatherData *src,
+                                                WeatherData *scratch) {
+  (void)scratch;
+  return src;
+}
+#endif
+
 // "Touch & Go" advice card.
 //
 // Classifies the current weather into one of N tiers, then picks a phrase
@@ -29,6 +208,7 @@ typedef enum {
   ADV_HIGH_UV,
   ADV_BAD_AIR,
   ADV_MUGGY,
+  ADV_DATA_STALE,
   ADV_PLEASANT,
   ADV_TIER_COUNT,
 } AdviceTier;
@@ -42,366 +222,187 @@ typedef struct {
 // ---- Phrase pools (~10 per tier). Practical-with-a-wink voice. ----
 
 static const char *const PHRASES_STORM[] = {
-  "Lightning out. Stay in. Don't be a conductor.",
-  "Big sky drama. Indoor day.",
-  "Storm rolling in. Charge phones, not the air.",
-  "Thunder boss is busy. Reschedule outside plans.",
-  "Sky's throwing a tantrum. Wait it out.",
-  "Lightning loves tall things. Don't volunteer.",
-  "It's a storm, not a vibe. Get inside.",
-  "Cancel the picnic. Sky said no.",
-  "Sky is loud. Go be quiet inside.",
-  "Storm in progress. The sequel is worse.",
-  "Sky's mad. Don't argue with it.",
-  "Lightning likes umbrellas. Skip 'em.",
-  "Thunder is sky's bad mood. Wait it out.",
-  "Cancel everything outdoors. Trust me.",
-  "Find a roof. Any roof.",
-  "Storm tracker says: stay put.",
-  "Power flicker possible. Charge now.",
-  "Trees plus wind plus you = bad plan.",
-  "Hail risk. Park the car under shelter.",
-  "Don't be the tallest thing outside.",
-  "Storms pass. Patience is free.",
-  "Streets flood fast. Drive smart.",
-  "Cellar weather. Pet, snacks, candle.",
-  "Lightning crack count is miles. Count 'em.",
-  "Big boom, small body. Stay inside.",
-  "Hail's like sky pebbles. Hide.",
-  "Skip the hike. Take the nap.",
-  "Storm playlist on. Adulting off.",
-  "Window seat, hot drink, no regrets.",
-  "The sky's loud. Be quiet inside.",
+  "Storm overhead. Stay inside and off the roof.",
+  "Lightning is present. Reschedule outdoor plans.",
+  "Sky's throwing a tantrum. Best to wait it out.",
+  "Thunder boss is busy. Grab a book.",
+  "Active storm. The sequel is worse.",
+  "Cancel the picnic. The sky said no.",
+  "Electrical storm active. Don't be a conductor.",
+  "Heavy skies ahead. Find a roof immediately.",
+  "Big booms inbound. Small bodies stay inside."
 };
 
 static const char *const PHRASES_RAIN_SOON[] = {
-  "Rain incoming. Last call for sunshine.",
+  "Rain incoming. This is your last call for sunshine.",
   "Sky's about to leak. Move accordingly.",
-  "Wet weather inbound. Grab the jacket.",
-  "Heads up: clouds are loaded.",
-  "Beat the rain or get soaked. Your call.",
-  "Umbrella time soon. Don't be smug.",
-  "Drops are queued. Prepare hood.",
-  "Rain on the radar. The window's closing.",
-  "Sky says: hurry, or get wet.",
-  "Showers approaching. Make it quick.",
-  "Window's closing. Move.",
-  "Pop-up shower in 15-30 min. Heads up.",
-  "Sky's loading. Grab the layer.",
-  "Hood up or get dunked.",
-  "Wet hair forecast: imminent.",
-  "Walk fast. Or get wet. Choose.",
-  "Errands? Now's the moment.",
-  "Last dry minutes of the hour.",
-  "Bring it, don't borrow it. Umbrella.",
-  "Damp incoming. Shoes know.",
-  "Rain on schedule. Stay sharp.",
-  "Pavement's about to shine.",
-  "Coffee run? Now or wet.",
-  "Sky says: minutes left.",
-  "Wrap the bag. Tuck the phone.",
-  "Beat the cloud. It's on the way.",
-  "Outdoor plans, last call.",
-  "Rain timer running. Move.",
-  "About to be a wet day. Soon.",
-  "Soft drizzle warm-up coming.",
+  "Wet weather inbound. Time to grab the jacket.",
+  "Heads up, clouds are loaded. Beat the rain.",
+  "Pop-up shower in 15. The pavement will shine.",
+  "Drops are queued. Prepare the hood.",
+  "Window's closing. Move fast.",
+  "Sky says hurry. Or get wet, your choice.",
+  "Damp incoming. Last dry minutes of the hour."
 };
 
 static const char *const PHRASES_RAIN_NOW[] = {
-  "It's raining. Embrace it or escape it.",
-  "Rain mode. Hood up.",
-  "Wet outside. Don't pretend otherwise.",
-  "Currently damp. Plan accordingly.",
-  "It's coming down. So is your hair.",
+  "It is raining. Embrace the wet or escape it.",
   "Active drizzle. Boots > sneakers.",
-  "Sky's washing the world. Dodge it.",
-  "Rain is happening. Adjust expectations.",
-  "Outside is wet. This is not news anymore.",
-  "Take the umbrella. Yes, that one.",
-  "Currently wet. Adjust footwear.",
-  "Puddle world. Boots win.",
-  "Rain. Coffee. Window. Repeat.",
-  "Drops landing. So is your mood.",
+  "Currently wet. Adjust your expectations.",
+  "Sky's washing the world. Dodge it if you can.",
   "Slick streets. Slower steps.",
-  "Wet phone risk: high. Pocket it.",
-  "Outside is wet. Inside is fine.",
-  "Rain mode engaged. Plan around it.",
-  "Sky's washing up. Stay out of it.",
-  "Drizzle drama. Hood it.",
-  "Mist or rain? Yes.",
-  "Soggy shoes, sour mood. Avoid.",
-  "Big drops, fast wets. Sprint.",
-  "Steady rain. Just live with it.",
-  "Petrichor party. Smell it.",
-  "Sky's leaking. Step around it.",
-  "Rain check accepted. Cozy in.",
-  "Today's wet ad-lib. Roll with it.",
-  "Coffee tastes better when it's wet.",
-  "Indoor day, by sky decree.",
+  "Wet phone risk: high. Pocket it safely.",
+  "It's pouring. Coffee tastes better when it's wet.",
+  "Rain mode engaged. Umbrellas are mandatory.",
+  "Outside is wet. Inside is perfectly fine."
+};
+
+static const char *const PHRASES_RAIN_COLD[] = {
+  "Cold rain active. Surfaces can turn slick fast.",
+  "Near-freezing rain. Slow steps, better traction.",
+  "Cold drizzle outside. Keep feet warm and dry.",
+  "Wet plus cold today. Extra caution on sidewalks.",
+  "Chilly rain mode. Waterproof layers pay off.",
+  "Cold rain and wind. Keep hands covered.",
+  "Icy-feel rain. Move slower and watch curbs.",
+  "Rain is cold enough to bite. Bundle and hood up.",
+  "Cold wet outside. Prioritize grip over speed."
 };
 
 static const char *const PHRASES_SNOW[] = {
-  "Snow falling. Layer up, walk slow.",
-  "Slippery world. Mind the steps.",
-  "It's snowing. Roads disagree with you.",
-  "Cold and white out. Drive like grandma.",
-  "Snow day energy. Hot drink mandatory.",
-  "Boots, gloves, patience. In that order.",
-  "Snow's doing its thing. So should you.",
-  "Bundle up. The snow is not optional.",
-  "Powder day. Or slush day. Probably slush.",
-  "Soft sky. Sharp cold. Plan ahead.",
-  "Snow's on. Drive slow, eat soup.",
-  "Powder day. Boots ready.",
-  "Frosty streets. Watch the curbs.",
-  "Snow falls quiet. Roads don't.",
-  "Heat the car, then the hands.",
-  "Slush is the new ice. Beware.",
-  "Hot drink mandatory. Today rule.",
-  "Snow stacking. Boots aren't optional.",
-  "Wipers up before parking. Trust me.",
-  "Knit cap, full mitts, smug walk.",
-  "Salt the steps. Save the spine.",
-  "Sky's quiet, ground's loud.",
-  "Layers beat willpower today.",
-  "Sled weather. If a sled is near.",
-  "Cold light, soft world.",
-  "Snow days excuse everything.",
-  "Drive like grandma. She's wise.",
-  "Hot chocolate is medicine. Take it.",
-  "Cold and white = take it slow.",
-  "Bundle. Don't argue.",
+  "Snow falling. Layer up and walk slow.",
+  "Slippery world outside. Mind the curbs.",
+  "Cold and white out. Drive like grandma does.",
+  "Boots, gloves, patience. In that exact order.",
+  "Snow stacking up. Boots are not optional.",
+  "Slush is the new ice. Step lighter.",
+  "Hot drink mandatory. It's a snow day rule.",
+  "Sky is quiet, ground is loud. Wear layers.",
+  "It's snowing. Roads strongly disagree with you."
 };
 
 static const char *const PHRASES_HOT[] = {
-  "Hydrate or wilt.",
-  "Cooking weather. Move with intent.",
-  "It's hot. The car will be hotter.",
-  "Sun's not playing. Find shade.",
-  "Heat advisory: vibes only inside.",
-  "Drink water. More than that.",
-  "Sweat is the new accessory.",
-  "Pavement is lava. Choose grass.",
-  "Heat wave. Slow is fast today.",
+  "Hydrate or wilt. It is cooking out there.",
+  "It is hot. The car will be hotter.",
+  "Heat advisory active. Vibes only inside today.",
+  "Sweat is the new accessory. Hydrate.",
+  "Pavement is literally lava. Choose grass.",
   "Stay cool. Literally and figuratively.",
-  "Shorts kind of day. Hydrate.",
-  "Cool drink count: 3 minimum.",
-  "AC is a love language.",
-  "Skip the asphalt. Find shade.",
-  "Heat warning: brains slow at 95.",
-  "Dogs need shade. So do you.",
-  "Iced everything. No exceptions.",
-  "Sun's cooking. Stay raw.",
-  "Pace yourself. Heat is patient.",
-  "Wet rag on neck = secret weapon.",
-  "Hot car warning. Crack a window.",
-  "Sweat is hydration's receipt.",
-  "Outdoor workout: dawn or dusk only.",
-  "Heat dome, brain dome. Slow down.",
-  "Move at low gear. The day's hot.",
-  "Ice cubes are friends. The best ones.",
-  "Wear less. Drink more. Win.",
-  "Heat respects nobody. Don't test it.",
-  "Pool beats pavement. Always today.",
-  "Lemonade era. Embrace it.",
+  "Heat wave conditions. Slow is fast today.",
+  "Sun's not playing. Find the shade.",
+  "AC is a love language. Stay indoors."
 };
 
 static const char *const PHRASES_COLD[] = {
-  "Cover the extremities.",
-  "Toe-numbing cold. Jacket non-negotiable.",
-  "Layers are not a suggestion.",
-  "It's cold. Your nose already knows.",
-  "Hat now. Regret later avoided.",
-  "Cold enough to taste. Bundle up.",
-  "Brisk is generous. It's freezing.",
-  "Hands in pockets, head down, go.",
-  "Warm drink, warm coat, warm room.",
-  "Winter said: prove you mean it.",
-  "Bone-cold. Layers won. Gloves loud.",
-  "Frost on windshield. Plan extra time.",
-  "Two pairs of socks is wisdom.",
-  "Wind chill bites harder than degrees.",
-  "Hot bath waiting at home.",
-  "Carry tea. Don't ask why.",
-  "Hand warmers earn their keep.",
-  "Lips chap, mood snaps. Balm up.",
-  "Diesel weather. Move with intent.",
-  "Snow boots, even if there's no snow.",
-  "Cold like a memory. Sharp.",
-  "Beard ice possible. Wear like a badge.",
-  "Numb fingers = tea time.",
-  "Wool socks fix 80% of cold.",
-  "Engine's cold. Idle a minute.",
-  "Step lighter on ice. Step shorter.",
-  "Long underwear is not a punchline.",
-  "Soup for lunch. Soup for dinner.",
-  "Bundle isn't a vibe. It's a rule.",
-  "Layers aren't optional today.",
+  "Toe-numbing cold. Cover your extremities.",
+  "Layers are not a suggestion. Bundle up safely.",
+  "It's cold. Your nose already knows the truth.",
+  "Cold enough to taste. Hat now, regret later.",
+  "Winter said prove it. Wear heavy layers.",
+  "Bone-cold outside. Hot bath waiting at home.",
+  "Wind chill bites. Two pairs of socks is wisdom.",
+  "Frost on everything. Plan extra driving time.",
+  "Hands in pockets, head down. Move with intent."
 };
 
 static const char *const PHRASES_WIND[] = {
-  "Hold your hat.",
-  "Blustery. Tie down loose stuff.",
-  "Wind's in charge today.",
-  "Hair plans? Cancelled.",
-  "Lean in. The wind certainly is.",
-  "Outdoor papers will be airborne.",
-  "Gusty. Mind the doors.",
-  "Wind speaks. Listen, then duck.",
-  "Heavy on the wind, light on patience.",
-  "Hold the dog. Hold the snacks.",
-  "Gusts strong enough to rearrange you.",
-  "Door-slam day. Hold the handle.",
-  "Garbage cans go for walks today.",
-  "Hair gel earns its money. Or doesn't.",
-  "Hat anchor required. Strings or chin.",
-  "Bike ride? Pick the cross-wind route.",
-  "Wind makes mild cold feel arctic.",
-  "Trash bag flight risk. Tie it.",
-  "Drive slow on highways. Crosswinds bite.",
-  "Tarp anything outdoors.",
-  "Watch the trees. They tell on the wind.",
-  "Lean into it. Or get blown sideways.",
-  "Wind chimes overtime today.",
-  "Patio chairs become missiles.",
-  "Wear weight today. Or be weight today.",
-  "Skip the open field. Trust me.",
-  "Tie down anything light. Now.",
-  "Sunglasses double as eye armor.",
-  "The wind is the boss. Obey.",
-  "Hold the door for the next person.",
+  "Hold your hat. Wind is in charge today.",
+  "Blustery conditions. Tie down loose stuff.",
+  "Hair plans? Canceled. Lean into the wind.",
+  "Gusts strong enough to rearrange your posture.",
+  "Door-slam day. Hold the handle tightly.",
+  "Wind makes mild cold feel completely arctic.",
+  "Trash bag flight risk. Secure all outdoor items.",
+  "Watch the trees. They'll tell on the wind.",
+  "Crosswinds bite. Drive slower on highways."
 };
 
 static const char *const PHRASES_HIGH_UV[] = {
-  "Sunscreen isn't optional.",
-  "Bright burn risk. Hat and shades.",
-  "UV's loud today. Cover up.",
-  "Sun is judging. So is your skin.",
-  "Slip, slop, slap. Old advice, still true.",
-  "Strong sun. Strong shade preference.",
-  "Sunglasses earn their keep today.",
-  "Reapply. Then reapply again.",
-  "Skin remembers. Be kind to it.",
-  "Bring shade with you if you must.",
-  "UV 9+: burns in 15 minutes. Cover up.",
-  "Sunscreen now. Reminder for later.",
-  "Hat over hood. Wide brim wins.",
-  "Shade is currency. Spend wisely.",
-  "Reapply SPF every 80 minutes.",
-  "UV bites silent. Cover before it does.",
-  "Sunglasses are tools, not vibes.",
-  "Beach? Bring SPF 50, then more.",
-  "Long sleeves beat sunburn regret.",
-  "UV index over 7 = serious.",
-  "Future-you wants shade now.",
-  "Lip balm with SPF. Trust me.",
-  "Reapply after swim. Always.",
-  "Even cloudy hours can burn.",
-  "Walk on the shady side of the street.",
-  "Hat-and-glasses is the look today.",
-  "Sun's harsh. Be kind to your skin.",
-  "Two layers of SPF beats one regret.",
-  "Tan today, mole check tomorrow.",
-  "Skin SPF is cheaper than dermatology.",
+  "Sunscreen isn't optional. Bright burn risk today.",
+  "UV's completely peaked. Cover yourself up.",
+  "Sun is judging. So is your sensitive skin.",
+  "Strong sun today. Strong shade preference required.",
+  "Reapply your SPF. Then reapply it once again.",
+  "UV index severe. Burns happen in 15 minutes.",
+  "Hat over hood. Wide brim always wins here.",
+  "Shade is a luxury. plan outdoor time around it.",
+  "Sunglasses act as tools. They aren't just vibes."
 };
 
 static const char *const PHRASES_BAD_AIR[] = {
-  "Maybe skip the run.",
-  "Air quality off. Indoor cardio wins.",
-  "Lungs prefer indoors today.",
-  "Air's having a rough one.",
-  "Mask up if you're sensitive.",
-  "Open windows? Maybe not today.",
-  "Outdoor workout: postponed.",
-  "Breathe shallow. Or just breathe inside.",
-  "Air feels thick. Trust the gauge.",
-  "Today is a 'stay in' kind of day.",
-  "Air quality red. Skip the run.",
-  "N95 if you're sensitive.",
-  "Window closed, fan on, filter in.",
-  "Defer outdoor exercise. Tomorrow's better.",
-  "Air feels gritty. Trust the gauge.",
-  "Asthma alert. Inhaler in pocket.",
-  "Babies and seniors: indoors only.",
-  "Smoke or smog? Yes.",
-  "Brief errands only. Mask up.",
-  "Indoor cardio is real cardio.",
-  "Air purifier earns its keep today.",
-  "Cancel the outdoor brunch.",
-  "Even the dog should wait.",
-  "Open windows? Maybe tomorrow.",
-  "Eyes burning is the body's warning.",
-  "Skip the long bike ride.",
-  "Step out, step back. Quick only.",
-  "Filter check: today's the day.",
-  "Sensitive group? Stay in. Period.",
-  "Lungs aren't optional. Be kind.",
+  "Air quality off. Indoor cardio totally wins.",
+  "Lungs prefer indoors today. Keep windows fully shut.",
+  "Air feels thick. Trust the AQI gauge.",
+  "Mask up if sensitive. Today's a stay-in day.",
+  "Outdoor workout gently postponed. Do not push it.",
+  "Breathe shallow. Or just breathe safely inside.",
+  "Air's having a rough one. Filter check time.",
+  "Eyes burning is your body's early warning.",
+  "Smoke or smog? Yes. Move your plans inside."
 };
 
 static const char *const PHRASES_MUGGY[] = {
-  "Sticky. Shower-after-walking territory.",
-  "Humid soup. Lightweight clothes.",
-  "Air is thick today. Move slow.",
-  "Damp warmth. Shower's your friend.",
-  "Hair has its own plans now.",
-  "Cotton lies. Wear synthetics.",
-  "Sweaty without effort. Welcome to summer.",
-  "Mug season. Embrace the dewy look.",
-  "Humidity says hi. Loudly.",
-  "It's not the heat. Yes it is. And the wet.",
-  "Damp warmth. Cotton lies.",
-  "Humidity 75% feels like 110.",
-  "Hair plans canceled by physics.",
-  "Towel in the bag. Always.",
-  "Sticky air. Move slow, drink more.",
-  "Synthetic fabrics earn their keep.",
-  "Sweat without effort. Welcome to muggy.",
-  "Lightweight cotton beats tight denim.",
-  "Hydrate like it's hot. It is.",
-  "Frizz is a vibe today.",
-  "Doorknobs feel damp. Wipe down.",
-  "Tropical except for the beach.",
-  "Dew point > air temp = soup.",
-  "Lukewarm shower wins this round.",
-  "Bring two shirts. You'll use both.",
-  "Cotton sticks. Wear linen.",
-  "Air feels chewable. Don't chew it.",
-  "Sleep with the fan on. Don't ask.",
-  "Glasses fog at every doorway.",
-  "Tropical day. Tropical pace.",
+  "Humid soup. Embrace the completely dewy look.",
+  "Sticky conditions. Shower-after-walking territory.",
+  "Air is thick today. Move slow and hydrate.",
+  "Humidity says hi. Very, very loudly.",
+  "Towel in the bag. Always carry one today.",
+  "Cotton truly lies. You must wear synthetics.",
+  "Frizz is a total vibe. Hair plans canceled.",
+  "Tropical conditions. Without the actual beach.",
+  "Dew point over air temp. Welcome to soup."
 };
 
-static const char *const PHRASES_PLEASANT[] = {
-  "Just nice out. Go enjoy something.",
-  "Boring weather. The good kind.",
-  "Outside is officially fine.",
-  "Goldilocks day. Use it.",
-  "No excuses. The weather is great.",
-  "Touch grass weather.",
-  "A walk would be wasted indoors.",
-  "Nice out. Suspiciously nice. Go anyway.",
-  "The kind of day weather apps brag about.",
-  "All systems go. Step outside.",
-  "Goldilocks day. Use every hour.",
-  "Touch grass. The grass is ready.",
-  "No excuse weather. Go do the thing.",
-  "Sky's polite. Be polite back.",
-  "Walk longer than planned.",
-  "Picnic-grade conditions.",
-  "Open the windows. Let the day in.",
-  "Bike anywhere. Distance is forgiving.",
-  "Errands feel like field trips today.",
-  "Patio season activated.",
-  "Coffee outside, not inside, today.",
-  "Easy weather. Hard not to enjoy.",
-  "Boring sky. Beautiful day.",
-  "The kind of day to call someone.",
-  "Linger outside. Nothing's chasing you.",
-  "Open-window driving weather.",
-  "Sunglasses, no jacket, no regrets.",
-  "Easy on the bones, easy on the mood.",
-  "A day without complaints.",
-  "Friendly sky. Step into it.",
+static const char *const PHRASES_PLEASANT_DAY[] = {
+  "Just nice out. Go safely enjoy something.",
+  "Boring weather. This is officially the good kind.",
+  "Goldilocks day. Make sure you fully use it.",
+  "If you head out, conditions are on your side.",
+  "All systems fully go. Step boldly outside.",
+  "Friendly sky above. Go be friendly right back.",
+  "Picnic-grade conditions. Grab your basket and run.",
+  "The kind of day weather apps totally brag about.",
+  "No weather blockers in sight. Plans are a go."
+};
+
+// Night-safe pleasant set. Keep these neutral and avoid "go outside now"
+// directives that can be wrong late at night.
+static const char *const PHRASES_PLEASANT_NIGHT[] = {
+  "Clear and quiet outside. Good night to wind down.",
+  "Calm skies overhead. Evening mode looks good.",
+  "Night is steady and dry. Low drama weather.",
+  "Quiet conditions. Recharge mode is fully valid.",
+  "Stable night weather. Nothing urgent outside.",
+  "Skies are calm. A cozy plan wins tonight.",
+  "Clear late hours. No weather chaos in sight.",
+  "Evening air is settled. Keep plans low-stress.",
+  "Night forecast is calm. Comfort choices win."
+};
+
+// Daytime but cool-safe pleasant set. Encourages layers instead of implying
+// it is universally ideal.
+static const char *const PHRASES_PLEASANT_COOL[] = {
+  "Clear but brisk. Bring a jacket if you head out.",
+  "Dry and cool today. Layers make it nicer.",
+  "Steady sky, cooler air. Light jacket weather.",
+  "Calm conditions with a chill. Dress for comfort.",
+  "Looks nice, feels cool. Add one extra layer.",
+  "Quiet weather, cooler temps. Easy layer day.",
+  "Sky is friendly, air is brisk. Plan accordingly.",
+  "Good visibility, cool feel. Keep sleeves handy.",
+  "Nothing severe, just cool. Jacket still smart."
+};
+
+static const char *const PHRASES_DATA_STALE[] = {
+  "Forecast is aging out. Pull down to refresh.",
+  "This snapshot may be stale. Grab a fresh update.",
+  "Data is older than ideal. Refresh before planning.",
+  "Weather feed may be behind. Quick refresh recommended.",
+  "Advisory confidence is reduced. Update for accuracy.",
+  "Conditions may have shifted. Request a new fetch.",
+  "Old weather packet detected. Refresh for latest.",
+  "This read is stale-ish. Pull to sync current data.",
+  "Forecast age is high. Refresh to regain trust."
 };
 
 #define POOL(arr) (arr), (sizeof(arr) / sizeof((arr)[0]))
@@ -417,7 +418,8 @@ static const AdviceTierDef TIERS[ADV_TIER_COUNT] = {
   [ADV_HIGH_UV]   = { "HIGH UV",   POOL(PHRASES_HIGH_UV) },
   [ADV_BAD_AIR]   = { "BAD AIR",   POOL(PHRASES_BAD_AIR) },
   [ADV_MUGGY]     = { "MUGGY",     POOL(PHRASES_MUGGY) },
-  [ADV_PLEASANT]  = { "NICE",      POOL(PHRASES_PLEASANT) },
+  [ADV_DATA_STALE]= { "CHECK",     POOL(PHRASES_DATA_STALE) },
+  [ADV_PLEASANT]  = { "NICE",      POOL(PHRASES_PLEASANT_DAY) },
 };
 
 #undef POOL
@@ -430,6 +432,152 @@ static const AdviceTierDef TIERS[ADV_TIER_COUNT] = {
 // body budget, leaving comfortable slack). Run is essentially free
 // (one pass of ~330 layout calculations on first card draw).
 static bool s_audited = false;
+
+static bool prv_now_local_hour(int *hour_out) {
+#if TW_ADVICE_MATRIX_CASE > 0
+  if (s_debug_ctx.force_hour_set) {
+    if (hour_out) *hour_out = s_debug_ctx.force_hour;
+    return true;
+  }
+#endif
+
+  time_t now = time(NULL);
+  struct tm *lt = localtime(&now);
+  if (!lt) return false;
+  if (hour_out) *hour_out = lt->tm_hour;
+  return true;
+}
+
+static bool prv_parse_12h_minutes(const char *s, int *minutes_out) {
+  if (!s || !*s) return false;
+  const char *p = s;
+
+  int h = 0;
+  int h_digits = 0;
+  while (*p >= '0' && *p <= '9' && h_digits < 2) {
+    h = h * 10 + (*p - '0');
+    p++;
+    h_digits++;
+  }
+  if (h_digits == 0 || *p != ':') return false;
+  p++;
+
+  if (!(p[0] >= '0' && p[0] <= '9' && p[1] >= '0' && p[1] <= '9')) return false;
+  int m = (p[0] - '0') * 10 + (p[1] - '0');
+  p += 2;
+
+  if (*p == ' ') p++;
+  if (!(*p == 'A' || *p == 'a' || *p == 'P' || *p == 'p')) return false;
+  bool is_pm = (*p == 'P' || *p == 'p');
+  p++;
+  if (!(*p == 'M' || *p == 'm')) return false;
+
+  if (h < 1 || h > 12 || m < 0 || m > 59) return false;
+  int h24 = h % 12;
+  if (is_pm) h24 += 12;
+  if (minutes_out) *minutes_out = h24 * 60 + m;
+  return true;
+}
+
+static bool prv_is_daytime(const WeatherData *d) {
+#if TW_ADVICE_MATRIX_CASE > 0
+  if (s_debug_ctx.force_daytime_set) {
+    return s_debug_ctx.force_daytime;
+  }
+#endif
+
+  time_t now = time(NULL);
+  struct tm *lt = localtime(&now);
+  if (!lt) return true;
+  int now_min = lt->tm_hour * 60 + lt->tm_min;
+
+  int sunrise_min = 0;
+  int sunset_min = 0;
+  if (prv_parse_12h_minutes(d->sunrise, &sunrise_min) &&
+      prv_parse_12h_minutes(d->sunset, &sunset_min) &&
+      sunrise_min < sunset_min) {
+    return now_min >= sunrise_min && now_min < sunset_min;
+  }
+
+  // Fallback if sunrise/sunset are unavailable.
+  return lt->tm_hour >= 7 && lt->tm_hour < 20;
+}
+
+static int prv_normalized_temp(const WeatherData *d) {
+  int t = d->temp;
+  if (t < -80) t = -80;
+  if (t > 180) t = 180;
+  return t;
+}
+
+static int prv_normalized_feels_like(const WeatherData *d) {
+  int f = d->feels_like;
+  if (f < -80 || f > 180) f = d->temp;
+  if (f < -80) f = -80;
+  if (f > 180) f = 180;
+  return f;
+}
+
+static bool prv_is_chilly(const WeatherData *d) {
+  // "Pleasant but cool" threshold intentionally sits above the hard cold
+  // threshold so the cool-safe phrase pool can be exercised without
+  // classifying as ADV_COLD.
+  const int cool = (d->units == UNITS_METRIC) ? 13 : 55;
+  return prv_normalized_feels_like(d) <= cool;
+}
+
+static bool prv_is_freezingish_rain(const WeatherData *d) {
+  const int freezeish = (d->units == UNITS_METRIC) ? 1 : 34;
+  return prv_normalized_feels_like(d) <= freezeish;
+}
+
+static bool prv_is_stale_data(const WeatherData *d) {
+  if (!d->valid) return true;
+  if (d->last_updated == 0) return false;
+
+  time_t now = time(NULL);
+  if (now <= 0) return false;
+  if ((uint32_t)now <= d->last_updated) return false;
+  return ((uint32_t)now - d->last_updated) > (3u * 60u * 60u);
+}
+
+static int prv_clamp_int(int v, int lo, int hi) {
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
+}
+
+static const char *const *prv_phrase_pool_for_tier(const WeatherData *d,
+                                                    AdviceTier tier,
+                                                    int *count_out) {
+  if (tier == ADV_RAIN_NOW && prv_is_freezingish_rain(d)) {
+    if (count_out) *count_out = (int)(sizeof(PHRASES_RAIN_COLD) /
+                                      sizeof(PHRASES_RAIN_COLD[0]));
+    return PHRASES_RAIN_COLD;
+  }
+
+  if (tier != ADV_PLEASANT) {
+    const AdviceTierDef *def = &TIERS[tier];
+    if (count_out) *count_out = def->phrase_count;
+    return def->phrases;
+  }
+
+  if (!prv_is_daytime(d)) {
+    if (count_out) *count_out = (int)(sizeof(PHRASES_PLEASANT_NIGHT) /
+                                      sizeof(PHRASES_PLEASANT_NIGHT[0]));
+    return PHRASES_PLEASANT_NIGHT;
+  }
+
+  if (prv_is_chilly(d)) {
+    if (count_out) *count_out = (int)(sizeof(PHRASES_PLEASANT_COOL) /
+                                      sizeof(PHRASES_PLEASANT_COOL[0]));
+    return PHRASES_PLEASANT_COOL;
+  }
+
+  if (count_out) *count_out = (int)(sizeof(PHRASES_PLEASANT_DAY) /
+                                    sizeof(PHRASES_PLEASANT_DAY[0]));
+  return PHRASES_PLEASANT_DAY;
+}
 
 static void prv_audit_phrases(GRect body_r) {
   GFont f = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
@@ -447,24 +595,99 @@ static void prv_audit_phrases(GRect body_r) {
       }
     }
   }
+
+  const char *const *pleasant_sets[] = {
+    PHRASES_PLEASANT_DAY,
+    PHRASES_PLEASANT_NIGHT,
+    PHRASES_PLEASANT_COOL,
+    PHRASES_RAIN_COLD,
+  };
+  const int pleasant_counts[] = {
+    (int)(sizeof(PHRASES_PLEASANT_DAY) / sizeof(PHRASES_PLEASANT_DAY[0])),
+    (int)(sizeof(PHRASES_PLEASANT_NIGHT) / sizeof(PHRASES_PLEASANT_NIGHT[0])),
+    (int)(sizeof(PHRASES_PLEASANT_COOL) / sizeof(PHRASES_PLEASANT_COOL[0])),
+    (int)(sizeof(PHRASES_RAIN_COLD) / sizeof(PHRASES_RAIN_COLD[0])),
+  };
+
+  for (int s = 0; s < 4; ++s) {
+    for (int i = 0; i < pleasant_counts[s]; ++i) {
+      GSize sz = graphics_text_layout_get_content_size(
+          pleasant_sets[s][i], f,
+          GRect(0, 0, body_r.size.w, 500),
+          GTextOverflowModeWordWrap, GTextAlignmentCenter);
+      if (sz.h > body_r.size.h) {
+        APP_LOG(APP_LOG_LEVEL_WARNING,
+                "[advice] OVERFLOW pleasant_set=%d idx=%d h=%d>max=%d: \"%s\"",
+                s, i, sz.h, body_r.size.h, pleasant_sets[s][i]);
+      }
+    }
+  }
 }
 
-// Classify weather into a tier. Priority-ordered: first match wins.
-// Thresholds are imperial-leaning but work across both unit modes for the
-// tongue-in-cheek output (a "95°" advice line on a 95°C day would be
-// hyperbolic but still funny — and the unit context is implied by the
-// other cards).
+// Classify weather into a tier. Priority-ordered, first match wins.
+//
+// Conflict-priority rubric:
+//   1) Confidence gate
+//      - stale/invalid packet -> ADV_DATA_STALE
+//   2) Immediate precip/severe hazard
+//      - storm -> rain soon -> rain now -> snow
+//      (Precip wins over ambient stress so we do not advise "pleasant/windy"
+//       while active/near-term precipitation is the core risk.)
+//   3) Thermal stress
+//      - hot -> cold -> late-night cool fallback
+//   4) Exposure stress
+//      - high wind -> high UV (daytime only) -> bad air -> muggy
+//   5) Fallback
+//      - pleasant
 static AdviceTier prv_classify(const WeatherData *d) {
-  if (d->condition == COND_STORM) return ADV_STORM;
-  if (d->rain_alert_min >= 0 && d->rain_alert_min <= 30) return ADV_RAIN_SOON;
-  if (d->condition == COND_RAIN) return ADV_RAIN_NOW;
-  if (d->condition == COND_SNOW) return ADV_SNOW;
-  if (d->feels_like >= 95) return ADV_HOT;
-  if (d->feels_like <= 20) return ADV_COLD;
-  if (d->wind_speed >= 20) return ADV_WIND;
-  if (d->uv >= 8) return ADV_HIGH_UV;
-  if (d->aqi >= 100) return ADV_BAD_AIR;
-  if (d->humidity >= 75 && d->temp >= 70) return ADV_MUGGY;
+  if (prv_is_stale_data(d)) return ADV_DATA_STALE;
+
+  // Normalize once, compare everywhere against normalized values only.
+  int temp = prv_normalized_temp(d);
+  int feels_like = prv_normalized_feels_like(d);
+  int wind_speed = prv_clamp_int(d->wind_speed, 0, 200);
+  int humidity = prv_clamp_int(d->humidity, 0, 100);
+  int uv = prv_clamp_int(d->uv, 0, 15);
+  int aqi = prv_clamp_int(d->aqi, 0, 500);
+
+  const bool metric = (d->units == UNITS_METRIC);
+  int hot_thresh = metric ? 30 : 86;
+  int chilly_thresh = metric ? 7 : 45;
+  int muggy_temp_thresh = metric ? 21 : 70;
+  int wind_alert_thresh = metric ? 32 : 20;       // 20 mph ~= 32 km/h
+  int late_night_cool_thresh = metric ? 13 : 55;  // cool but not freezing
+
+  bool daytime = prv_is_daytime(d);
+  int hour = 12;
+  bool have_hour = prv_now_local_hour(&hour);
+
+  // Trigger map (documented booleans make tie-break behavior explicit).
+  bool trig_storm = (d->condition == COND_STORM);
+  bool trig_rain_soon = (d->rain_alert_min >= 0 && d->rain_alert_min <= 30);
+  bool trig_rain_now = (d->condition == COND_RAIN);
+  bool trig_snow = (d->condition == COND_SNOW);
+  bool trig_hot = (feels_like >= hot_thresh);
+  bool trig_cold = (feels_like <= chilly_thresh);
+  bool trig_late_night_cool = (!daytime && have_hour &&
+                               (hour >= 22 || hour <= 5) &&
+                               feels_like <= late_night_cool_thresh);
+  bool trig_wind = (wind_speed >= wind_alert_thresh);
+  bool trig_high_uv = (daytime && uv >= 8);
+  bool trig_bad_air = (aqi >= 100);
+  bool trig_muggy = (humidity >= 75 && temp >= muggy_temp_thresh);
+
+  if (trig_storm) return ADV_STORM;
+  if (trig_rain_soon) return ADV_RAIN_SOON;
+  if (trig_rain_now) return ADV_RAIN_NOW;
+  if (trig_snow) return ADV_SNOW;
+
+  if (trig_hot) return ADV_HOT;
+  if (trig_cold || trig_late_night_cool) return ADV_COLD;
+
+  if (trig_wind) return ADV_WIND;
+  if (trig_high_uv) return ADV_HIGH_UV;
+  if (trig_bad_air) return ADV_BAD_AIR;
+  if (trig_muggy) return ADV_MUGGY;
   return ADV_PLEASANT;
 }
 
@@ -483,6 +706,7 @@ static void prv_draw_tier_icon(GContext *ctx, GPoint c, int size,
     case ADV_WIND:      icon_draw_wind(ctx, c, size, color); break;
     case ADV_BAD_AIR:   icon_draw_pulse(ctx, c, size, color); break;
     case ADV_MUGGY:     icon_draw_droplet(ctx, c, size, color); break;
+    case ADV_DATA_STALE: icon_draw_clock(ctx, c, size, color); break;
     default:            icon_draw_sun(ctx, c, size, color); break;
   }
 }
@@ -499,14 +723,78 @@ static GColor prv_tier_color(AdviceTier tier) {
     case ADV_COLD:
     case ADV_BAD_AIR:
     case ADV_MUGGY:      return theme_accent_blue();
+    case ADV_DATA_STALE: return theme_fg();
     case ADV_PLEASANT:   return theme_accent_advice();  // echo the card's identity color
     case ADV_WIND:
     default:             return theme_fg();
   }
 }
 
+// Generates a short, data-driven headline for the tier that triggered.
+// The headline is the "why" — the specific metric that caused this tier
+// to win — displayed in accent color above the quip.
+static void prv_generate_tier_headline(AdviceTier tier, const WeatherData *d,
+                                       char *buf, size_t buf_size) {
+  int temp = prv_normalized_temp(d);
+  int feels_like = prv_normalized_feels_like(d);
+
+  switch (tier) {
+    case ADV_STORM:
+      snprintf(buf, buf_size, "STORM OVERHEAD");
+      break;
+    case ADV_RAIN_SOON:
+      snprintf(buf, buf_size, "RAIN IN %d MINS", d->rain_alert_min);
+      break;
+    case ADV_RAIN_NOW:
+      if (prv_is_freezingish_rain(d)) {
+        snprintf(buf, buf_size, "COLD RAIN / %d\xc2\xb0", temp);
+      } else {
+        snprintf(buf, buf_size, "RAINING / %d\xc2\xb0", temp);
+      }
+      break;
+    case ADV_SNOW:
+      snprintf(buf, buf_size, "SNOWING / %d\xc2\xb0", temp);
+      break;
+    case ADV_HOT:
+      snprintf(buf, buf_size, "FEELS LIKE %d\xc2\xb0", feels_like);
+      break;
+    case ADV_COLD:
+      snprintf(buf, buf_size, "FEELS LIKE %d\xc2\xb0", feels_like);
+      break;
+    case ADV_WIND:
+      if (d->units == UNITS_METRIC) {
+        snprintf(buf, buf_size, "%d KMH GUSTS", d->wind_speed);
+      } else {
+        snprintf(buf, buf_size, "%d MPH GUSTS", d->wind_speed);
+      }
+      break;
+    case ADV_HIGH_UV:
+      snprintf(buf, buf_size, "UV INDEX: %d", d->uv);
+      break;
+    case ADV_BAD_AIR:
+      snprintf(buf, buf_size, "AQI: %d (POOR)", d->aqi);
+      break;
+    case ADV_MUGGY:
+      snprintf(buf, buf_size, "%d%% HUMIDITY", d->humidity);
+      break;
+    case ADV_DATA_STALE:
+      snprintf(buf, buf_size, "DATA MAY BE STALE");
+      break;
+    case ADV_PLEASANT:
+    default:
+      if (!prv_is_daytime(d)) {
+        snprintf(buf, buf_size, "NIGHT / %d\xc2\xb0", temp);
+      } else {
+        snprintf(buf, buf_size, "%d\xc2\xb0 & CLEAR", temp);
+      }
+      break;
+  }
+}
+
 void card_advice_draw(GContext *ctx, GRect bounds) {
-  WeatherData *d = weather_data_get();
+  WeatherData *live = weather_data_get();
+  WeatherData scenario;
+  const WeatherData *d = prv_effective_weather(live, &scenario);
   int W = bounds.size.w;
 
   AdviceTier tier = prv_classify(d);
@@ -542,23 +830,50 @@ void card_advice_draw(GContext *ctx, GRect bounds) {
   // data refreshes. Fall back to time-bucketed minute if never refreshed.
   uint32_t seed = d->last_updated ? d->last_updated
                                   : (uint32_t)(time(NULL) / 60);
-  int idx = (int)(seed % (uint32_t)def->phrase_count);
-  const char *phrase = def->phrases[idx];
+  int phrase_count = 0;
+  const char *const *phrase_pool = prv_phrase_pool_for_tier(d, tier,
+                                                            &phrase_count);
+  if (phrase_count <= 0 || !phrase_pool) {
+    phrase_pool = def->phrases;
+    phrase_count = def->phrase_count;
+  }
+  int idx = (int)(seed % (uint32_t)phrase_count);
+  const char *phrase = phrase_pool[idx];
 
-  // Body rect: full content width minus 2*UI_MARGIN_X, vertically
-  // centered between the badge bottom and the bottom safe zone (which
-  // hosts the auto-banner + page indicator).
+  // Two-Tone layout:
+  //   ┌──────────────────────────────────┐
+  //   │  headline  ← accent color, 18pt  │  ~20px
+  //   │  quip      ← fg color, 24pt      │  remaining
+  //   └──────────────────────────────────┘
+  // The headline is the triggering metric (e.g. "FEELS LIKE 97°") so the
+  // quip punches in context. Both zones sit between the badge and the
+  // auto-banner / page-indicator safe zone at the bottom.
   int body_top = badge_y + 26;
   int body_bot = bounds.origin.y + bounds.size.h
                  - PBL_IF_ROUND_ELSE(70, 56);  // banner + indicator zone
-  int body_h = body_bot - body_top;
-  GRect body_r = GRect(bounds.origin.x + UI_MARGIN_X, body_top,
-                       W - 2 * UI_MARGIN_X, body_h);
-  if (!s_audited) { prv_audit_phrases(body_r); s_audited = true; }
+  int ox = bounds.origin.x;
+
+  // --- Headline row (accent-colored, Gothic 18 Bold) ---
+  int headline_h = 22;
+  GRect headline_r = GRect(ox + UI_MARGIN_X, body_top,
+                           W - 2 * UI_MARGIN_X, headline_h);
+  char headline_buf[32];
+  prv_generate_tier_headline(tier, d, headline_buf, sizeof(headline_buf));
+  graphics_context_set_text_color(ctx, accent);
+  graphics_draw_text(ctx, headline_buf,
+      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+      headline_r, GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+
+  // --- Quip row (fg color, Gothic 24 Bold) ---
+  int quip_top = body_top + headline_h + 4;
+  int quip_h   = body_bot - quip_top;
+  GRect quip_r = GRect(ox + UI_MARGIN_X, quip_top,
+                       W - 2 * UI_MARGIN_X, quip_h);
+  if (!s_audited) { prv_audit_phrases(quip_r); s_audited = true; }
   graphics_context_set_text_color(ctx, theme_fg());
   graphics_draw_text(ctx, phrase,
       fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
-      body_r, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+      quip_r, GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 
   // Standard auto status banner so this card stays consistent with peers.
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,

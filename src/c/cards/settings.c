@@ -7,7 +7,7 @@
 
 // Phase 10D: Settings / Manage Cards card.
 //
-// Layout: header, 9 rows (2 LOCKED + 7 TOGGLEABLE), footer hint.
+// Layout: header, 1 LOCKED row (MAIN) + 10 TOGGLEABLE rows, footer hint.
 //
 // Cursor model after Phase 10D:
 //   - TAP screen     → advance cursor to next toggleable row.
@@ -18,7 +18,7 @@
 // Cursor chevron is drawn in the violet advice accent so it pops
 // against fg labels and matches the Touch & Go card's identity color.
 
-#define LOCKED_COUNT 2
+#define LOCKED_COUNT 1
 
 static void prv_draw_checkbox(GContext *ctx, GRect r, bool checked) {
   graphics_context_set_stroke_color(ctx, theme_fg());
@@ -42,7 +42,7 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
 
   GFont row_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
   int row_h = PBL_IF_ROUND_ELSE(15, 14);
-  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 6);
+  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(4, 6);
 
   int box_size = 14;
   int gap = 10;
@@ -53,7 +53,7 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
   if (row_x < floor_x) row_x = floor_x;
 
   int cursor = settings_cursor();
-  const char *locked_labels[LOCKED_COUNT] = { "MAIN", "TOUCH & GO" };
+  const char *locked_labels[LOCKED_COUNT] = { "MAIN" };
 
   for (int i = 0; i < LOCKED_COUNT; ++i) {
     int y = top_y + i * row_h;
@@ -89,22 +89,26 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
     }
 
     graphics_context_set_text_color(ctx, txt);
-    graphics_draw_text(ctx, settings_label((ToggleId)i), row_font,
+    ToggleId tid = settings_visual_id(i);
+    graphics_draw_text(ctx, settings_label(tid), row_font,
         GRect(row_x, y - 2, label_max_w, row_h + 2),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
     GRect box = GRect(row_x + label_max_w + gap, y + 1, box_size, box_size);
     prv_draw_checkbox(ctx, box,
-                      settings_get_enabled((ToggleId)i));
+                      settings_get_enabled(tid));
   }
 
-  // Footer hint: how to use this card. Sits above the page indicator.
-  GFont hint_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
-  const char *hint = PBL_IF_ROUND_ELSE("TAP / SELECT",
-                                       "TAP=MOVE  SELECT=TOGGLE");
-  int hint_y = PBL_IF_ROUND_ELSE(H - 36, H - 32);
-  graphics_context_set_text_color(ctx, theme_secondary());
-  graphics_draw_text(ctx, hint, hint_font,
-      GRect(bounds.origin.x, hint_y, W, 16),
-      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  // Footer hint: how to use this card.
+  // On round: sits below the page indicator dots (dots end ~y=232, screen=260).
+  // On rect: sits above the dots near the bottom edge.
+  {
+    GFont hint_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
+    int hint_y = PBL_IF_ROUND_ELSE(H - 22, H - 32);
+    graphics_context_set_text_color(ctx, theme_secondary());
+    const char *hint = PBL_IF_ROUND_ELSE("TAP / SELECT", "TAP=MOVE  SELECT=TOGGLE");
+    graphics_draw_text(ctx, hint, hint_font,
+        GRect(bounds.origin.x, hint_y, W, 16),
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
 }

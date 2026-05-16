@@ -69,6 +69,25 @@ void card_air_quality_draw(GContext *ctx, GRect bounds) {
       GRect(ox, c.y + 18, W, 24),
       GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 
+  // Pollen badge (Google UPI 0..5). Skipped when uncovered (-1) so the
+  // card looks unchanged for users outside Google's coverage region.
+  if (d->pollen_level >= 0) {
+    const char *plabel;
+    GColor pcolor;
+    int lvl = d->pollen_level;
+    if (lvl == 0)      { plabel = "POLLEN: NONE";      pcolor = theme_secondary(); }
+    else if (lvl == 1) { plabel = "POLLEN: VERY LOW";     pcolor = GColorIslamicGreen; }
+    else if (lvl == 2) { plabel = "POLLEN: LOW";       pcolor = GColorIslamicGreen; }
+    else if (lvl == 3) { plabel = "POLLEN: MODERATE";  pcolor = theme_accent_orange(); }
+    else if (lvl == 4) { plabel = "POLLEN: HIGH";      pcolor = GColorOrange; }
+    else               { plabel = "POLLEN: VERY HIGH";    pcolor = GColorRed; }
+    graphics_context_set_text_color(ctx, pcolor);
+    graphics_draw_text(ctx, plabel,
+        fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+        GRect(ox, c.y + 40, W, 24),
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
+
   (void)H;
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
                       anim_get_frame());

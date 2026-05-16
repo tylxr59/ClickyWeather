@@ -11,7 +11,8 @@ static CommUpdateCb s_update_cb = NULL;
 // to avoid loading a stale-layout blob from older app versions.
 // Bumped 101 -> 102 when Phase 11 added blue_am/gold_am/gold_pm/blue_pm
 // (10 bytes each).
-#define PERSIST_KEY_CACHE 102
+// Bumped 102 -> 103 when dew_point/use_dew_point/pollen_level were added.
+#define PERSIST_KEY_CACHE 103
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -84,6 +85,13 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     d->wind_dir[sizeof(d->wind_dir) - 1] = '\0';
   }
   if ((t = dict_find(iter, MESSAGE_KEY_Humidity))) { d->humidity = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_DewPoint))) { d->dew_point = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_UseDewPoint))) {
+    d->use_dew_point = (t->value->int32 != 0);
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_PollenLevel))) {
+    d->pollen_level = (int)t->value->int32;
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip0))) { d->precip[0] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip1))) { d->precip[1] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip2))) { d->precip[2] = t->value->int32; }

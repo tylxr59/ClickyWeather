@@ -42,6 +42,13 @@ module.exports = [
           { "label": "Imperial (°F, mph)", "value": "0" },
           { "label": "Metric (°C, km/h)",  "value": "1" }
         ]
+      },
+      {
+        "type": "toggle",
+        "messageKey": "UseDewPoint",
+        "label": "Show dew point",
+        "description": "Replace the humidity reading on the main card with dew point temperature.",
+        "defaultValue": false
       }
     ]
   },

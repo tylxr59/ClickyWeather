@@ -14,3 +14,4 @@ friction.log
 # Pebble emulator lock files
 .lock-waf_*
 .wafpickle-*
+# *.png - removing to allow menu icons and other resources to be committed

@@ -5,14 +5,36 @@
 #define KEY_THEME            200
 #define KEY_TOGGLE_BASE      210  // KEY_TOGGLE_BASE + ToggleId
 
+// Visual order of rows in the Settings card. Decoupled from the enum
+// order so Touch & Go appears second (after the locked MAIN row) without
+// disrupting the persisted toggle keys (KEY_TOGGLE_BASE + ToggleId).
+static const ToggleId s_visual_order[SETTINGS_TOGGLEABLE_COUNT] = {
+  TOGGLE_ADVICE,  // "TOUCH & GO" — second row, right after MAIN
+  TOGGLE_HOURS,
+  TOGGLE_WEEK,
+  TOGGLE_PRECIP,
+  TOGGLE_UV,
+  TOGGLE_AQ,
+  TOGGLE_SUN,
+  TOGGLE_NIGHT,
+  TOGGLE_GOLDEN,
+  TOGGLE_RADAR,
+};
+
+ToggleId settings_visual_id(int visual_pos) {
+  if (visual_pos < 0 || visual_pos >= SETTINGS_TOGGLEABLE_COUNT) return TOGGLE_HOURS;
+  return s_visual_order[visual_pos];
+}
+
 static bool s_enabled[SETTINGS_TOGGLEABLE_COUNT] = {
-  true, true, true, true, true, true, true, true, true
+  true, true, true, true, true, true, true, true, true, true
 };
 static int s_cursor = 0;
 
 static const char *s_labels[SETTINGS_TOGGLEABLE_COUNT] = {
   "6 HOURS", "WEEK AHEAD", "RAIN", "UV INDEX",
   "AIR QUAL", "SUN CYCLE", "NIGHT SKY", "GOLDEN HR", "RADAR",
+  "TOUCH & GO",
 };
 
 void settings_load(void) {

@@ -11,6 +11,7 @@
 // Card-registry indices for the toggleable cards. Must match the
 // nav_register order below — kept in one place so it's obvious what
 // shifts if cards are reordered.
+#define IDX_ADVICE 1
 #define IDX_HOURS  2
 #define IDX_WEEK   3
 #define IDX_PRECIP 4
@@ -23,6 +24,7 @@
 
 static const int s_toggle_to_card_idx[SETTINGS_TOGGLEABLE_COUNT] = {
   IDX_HOURS, IDX_WEEK, IDX_PRECIP, IDX_UV, IDX_AQ, IDX_SUN, IDX_NIGHT, IDX_GOLDEN, IDX_RADAR,
+  IDX_ADVICE,
 };
 
 static void prv_apply_card_visibility(void) {
@@ -97,9 +99,10 @@ static void prv_select_click(ClickRecognizerRef r, void *ctx) {
   }
   if (strcmp(nav_current_name(), "Settings") == 0) {
     int cur = settings_cursor();
-    bool now = !settings_get_enabled((ToggleId)cur);
-    settings_set_enabled((ToggleId)cur, now);
-    nav_set_enabled(s_toggle_to_card_idx[cur], now);
+    ToggleId tid = settings_visual_id(cur);
+    bool now = !settings_get_enabled(tid);
+    settings_set_enabled(tid, now);
+    nav_set_enabled(s_toggle_to_card_idx[tid], now);
     nav_redraw();
     return;
   }
