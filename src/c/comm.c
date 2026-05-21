@@ -27,6 +27,10 @@ static void prv_load_cache(void) {
   if (persist_exists(PERSIST_KEY_CACHE)) {
     WeatherData *d = weather_data_get();
     persist_read_data(PERSIST_KEY_CACHE, d, sizeof(WeatherData));
+    // Clear alert state on startup to prevent stale alerts from displaying.
+    // Fresh alerts will be fetched and sent by PKJS immediately after.
+    d->alert_active = false;
+    d->alert_category = ALERT_CAT_NONE;
   }
 }
 

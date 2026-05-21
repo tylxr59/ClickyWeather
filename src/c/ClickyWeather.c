@@ -140,7 +140,16 @@ static void prv_window_unload(Window *window) {
 static void prv_init(void) {
   theme_init();
   settings_load();
-  weather_data_init_mock();
+  
+  // Initialize mock data only if we don't have cached weather data.
+  // comm_init() will load cached data if it exists; if not, mock data
+  // provides sensible defaults for the UI until PKJS sends real data.
+  // This prevents phantom alerts from mock data overwriting a real app state.
+  comm_init();
+  WeatherData *d = weather_data_get();
+  if (!d->valid) {
+    weather_data_init_mock();
+  }
 
   s_window = window_create();
   window_set_click_config_provider(s_window, prv_click_config_provider);
@@ -151,7 +160,6 @@ static void prv_init(void) {
   window_stack_push(s_window, true);
 
   comm_set_update_callback(nav_redraw);
-  comm_init();
   anim_init();
 }
 
