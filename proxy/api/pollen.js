@@ -1,4 +1,4 @@
-// TouchyWeather Pollen Proxy — Vercel serverless function.
+// ClickyWeather Pollen Proxy — Vercel serverless function.
 //
 // Strategy (free-tier optimized):
 //   1. Round coords to 0.1° (~11 km) so users in the same locality
@@ -106,7 +106,7 @@ async function fetchFromGoogle(apiKey, lat, lon) {
     `&location.latitude=${lat}&location.longitude=${lon}` +
     `&days=${FORECAST_DAYS}`;
   const upstream = await fetch(url, {
-    headers: { 'User-Agent': 'TouchyWeather/1.0' },
+    headers: { 'User-Agent': 'ClickyWeather/1.0' },
   });
   if (!upstream.ok) {
     if (upstream.status === 404) return { uncovered: true };

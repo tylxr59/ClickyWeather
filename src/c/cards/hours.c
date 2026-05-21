@@ -35,6 +35,7 @@ static GColor cond_accent(WeatherCondition cond) {
 void card_hours_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
+  int oy = bounds.origin.y;
 
   ui_draw_card_header_with_icon(ctx, bounds, "6 HOURS",
                                 theme_fg(),
@@ -46,7 +47,7 @@ void card_hours_draw(GContext *ctx, GRect bounds) {
   int icon_size = 16;
   int gap = 8;
   int row_h = PBL_IF_ROUND_ELSE(20, 19);
-  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(10, 6);
+  int top_y = oy + UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(10, 6);
 
   // Measure the widest time, temp, and pop across all rows for uniform
   // column widths. Pop column collapses if no row meets the threshold.

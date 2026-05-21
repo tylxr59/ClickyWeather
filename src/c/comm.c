@@ -34,34 +34,6 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
 
   Tuple *t;
 
-  // Phase 12: Radar pixel chunks. Routed to the radar card and treated
-  // as out-of-band — no cache writeback, no got_anything flag.
-  Tuple *t_chunk_idx = dict_find(iter, MESSAGE_KEY_RadarChunkIdx);
-  Tuple *t_chunk_data = dict_find(iter, MESSAGE_KEY_RadarChunkData);
-  if (t_chunk_idx && t_chunk_data) {
-    int idx = (int)t_chunk_idx->value->int32;
-    Tuple *t_total = dict_find(iter, MESSAGE_KEY_RadarChunkTotal);
-    Tuple *t_w = dict_find(iter, MESSAGE_KEY_RadarWidth);
-    Tuple *t_h = dict_find(iter, MESSAGE_KEY_RadarHeight);
-    Tuple *t_ts = dict_find(iter, MESSAGE_KEY_RadarTimestamp);
-    int total = t_total ? (int)t_total->value->int32 : 0;
-    int w = t_w ? (int)t_w->value->int32 : 0;
-    int h = t_h ? (int)t_h->value->int32 : 0;
-    uint32_t ts = t_ts ? (uint32_t)t_ts->value->int32 : 0;
-    card_radar_receive_chunk(idx, total,
-                             t_chunk_data->value->data,
-                             (int)t_chunk_data->length,
-                             w, h, ts);
-    if (s_update_cb) s_update_cb();
-    return;
-  }
-  Tuple *t_status = dict_find(iter, MESSAGE_KEY_RadarStatus);
-  if (t_status) {
-    card_radar_receive_status((int)t_status->value->int32);
-    if (s_update_cb) s_update_cb();
-    return;
-  }
-
   if ((t = dict_find(iter, MESSAGE_KEY_Theme))) {
     // Clay radiogroup with string values delivers as TUPLE_CSTRING; older
     // builds / direct AppMessage tests deliver TUPLE_INT. Accept both.
@@ -243,14 +215,6 @@ void comm_request_refresh(void) {
   app_message_outbox_send();
 }
 
-void comm_request_radar(void) {
-  DictionaryIterator *iter;
-  if (app_message_outbox_begin(&iter) != APP_MSG_OK) return;
-  dict_write_uint8(iter, MESSAGE_KEY_RadarRequest, 1);
-  dict_write_end(iter);
-  app_message_outbox_send();
-}
-
 void comm_set_update_callback(CommUpdateCb cb) {
   s_update_cb = cb;
 }
@@ -264,9 +228,7 @@ void comm_init(void) {
   prv_load_cache();
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_inbox_dropped(prv_inbox_dropped);
-  // Inbox bumped 1024 -> 2048 in Phase 12 to fit a 1500-byte radar
-  // pixel chunk plus message tuple overhead.
-  app_message_open(2048, 256);
+  app_message_open(1024, 256);
   // Refresh-on-open: PKJS 'ready' usually fires soon after launch, but in
   // background-relaunch / cached-PKJS scenarios it doesn't. Send our own
   // request after a short delay so AppMessage is fully open first.

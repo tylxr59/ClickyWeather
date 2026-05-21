@@ -38,6 +38,7 @@ static GColor high_color(WeatherCondition cond) {
 void card_week_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
+  int oy = bounds.origin.y;
 
   ui_draw_card_header_with_icon(ctx, bounds, "WEEK AHEAD",
                                 theme_fg(),
@@ -48,7 +49,7 @@ void card_week_draw(GContext *ctx, GRect bounds) {
   int icon_size = 16;
   int gap = 6;
   int row_h = PBL_IF_ROUND_ELSE(28, 26);
-  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(12, 8);
+  int top_y = oy + UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(12, 8);
 
   // Measure widest day label, low, high, and precip across 4 days for
   // uniform-column layout. Precip column collapses if no day qualifies.

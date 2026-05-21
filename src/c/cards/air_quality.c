@@ -24,9 +24,10 @@ void card_air_quality_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
   int H = bounds.size.h;
-  // Slide-transition origin offset (Phase 10F): translate every X coord
-  // so the gauge moves with the card during the 200ms push.
+  // Slide-transition origin offset: translate every coordinate by the
+  // bounds origin so the entire card moves as one rigid unit.
   int ox = bounds.origin.x;
+  int oy = bounds.origin.y;
 
   // Header in fg for legibility; the category color carries the signal.
   int header_y = UI_HEADER_Y;
@@ -39,7 +40,7 @@ void card_air_quality_draw(GContext *ctx, GRect bounds) {
   // numeric label still reads truthfully.
   int radius = PBL_IF_ROUND_ELSE(72, 64);
   int thickness = 10;
-  GPoint c = { ox + W/2, header_y + UI_HEADER_HEIGHT + 8 + radius };
+  GPoint c = { ox + W/2, oy + header_y + UI_HEADER_HEIGHT + 8 + radius };
   GRect arc_box = GRect(c.x - radius, c.y - radius, radius*2, radius*2);
   graphics_context_set_fill_color(ctx, theme_muted());
   graphics_fill_radial(ctx, arc_box, GOvalScaleModeFitCircle, thickness,

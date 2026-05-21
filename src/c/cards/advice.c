@@ -186,7 +186,7 @@ static const WeatherData *prv_effective_weather(const WeatherData *src,
 }
 #endif
 
-// "Touch & Go" advice card.
+// "Click & Go" advice card.
 //
 // Classifies the current weather into one of N tiers, then picks a phrase
 // from that tier's pool. Phrase selection is seeded by `last_updated` so
@@ -796,20 +796,21 @@ void card_advice_draw(GContext *ctx, GRect bounds) {
   WeatherData scenario;
   const WeatherData *d = prv_effective_weather(live, &scenario);
   int W = bounds.size.w;
+  int oy = bounds.origin.y;
 
   AdviceTier tier = prv_classify(d);
   const AdviceTierDef *def = &TIERS[tier];
   GColor accent = prv_tier_color(tier);
 
   // Header: distinct identity icon + color so this card never reads as
-  // "Air Quality". Tap icon + mustard yellow are unique to Touch & Go.
+  // "Air Quality". Tap icon + mustard yellow are unique to Click & Go.
   int header_y = UI_HEADER_Y;
-  ui_draw_card_header_with_icon(ctx, bounds, "TOUCH & GO",
+  ui_draw_card_header_with_icon(ctx, bounds, "CLICK & GO",
                                 theme_fg(),
                                 header_y, 18, icon_draw_tap);
 
   // Tier badge (icon + tier name) — small, right under the header.
-  int badge_y = header_y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4);
+  int badge_y = oy + header_y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4);
   GFont badge_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
   GSize bsize = graphics_text_layout_get_content_size(def->label, badge_font,
       GRect(0, 0, W, 20), GTextOverflowModeTrailingEllipsis,

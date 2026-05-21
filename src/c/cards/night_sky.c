@@ -21,6 +21,7 @@
 void card_night_sky_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
+  int oy = bounds.origin.y;
 
   ui_draw_card_header_with_icon(ctx, bounds, "NIGHT SKY",
                                 theme_fg(),
@@ -33,7 +34,7 @@ void card_night_sky_draw(GContext *ctx, GRect bounds) {
   int moon_size = PBL_IF_ROUND_ELSE(58, 56);
   // Tightened top gap (was 20/16) to give the auto-banner room below
   // the illumination line without overlapping it.
-  int moon_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(10, 12) + moon_size/2;
+  int moon_y = oy + UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(10, 12) + moon_size/2;
   GPoint moon_c = GPoint(bounds.origin.x + W/2, moon_y);
 
   // Sky disc: ~7px larger than the moon so a thin navy ring frames

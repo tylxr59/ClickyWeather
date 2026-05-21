@@ -266,7 +266,7 @@ void icon_draw_pulse(GContext *ctx, GPoint c, int size, GColor color) {
 
 // Fingertip-tap glyph: a filled center dot with two concentric arc
 // "ripple" rings opening upward and to the sides. Used as the
-// identity icon for the Touch & Go advice card so it reads
+// identity icon for the Click & Go advice card so it reads
 // distinctly from the pulse icon used by Air Quality.
 void icon_draw_tap(GContext *ctx, GPoint c, int size, GColor color) {
   graphics_context_set_fill_color(ctx, color);

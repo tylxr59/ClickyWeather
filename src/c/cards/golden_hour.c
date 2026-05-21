@@ -40,6 +40,7 @@ void card_golden_hour_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
   int ox = bounds.origin.x;
+  int oy = bounds.origin.y;
 
   // Header.
   int header_y = UI_HEADER_Y;
@@ -77,7 +78,7 @@ void card_golden_hour_draw(GContext *ctx, GRect bounds) {
   if (cluster_x < floor_x) cluster_x = floor_x;
 
   // Vertical layout: distribute 4 rows in the area below the header.
-  int top_y = header_y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(14, 10);
+  int top_y = oy + header_y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(14, 10);
   int row_h = PBL_IF_ROUND_ELSE(28, 26);
 
   for (int i = 0; i < 4; ++i) {

@@ -10,10 +10,10 @@ void card_precipitation_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
   int H = bounds.size.h;
-  // Slide-transition origin offset (Phase 10F): translate every X coord
-  // so the header cluster + bar chart move with the card during the
-  // 200ms push.
+  // Slide-transition origin offset: translate every coordinate by the
+  // bounds origin so the entire card moves as one rigid unit.
   int ox = bounds.origin.x;
+  int oy = bounds.origin.y;
 
   // Header icon + label.
   int header_y = UI_HEADER_Y;
@@ -27,11 +27,11 @@ void card_precipitation_draw(GContext *ctx, GRect bounds) {
   int total_w = icon_w + gap + tsize.w;
   int start_x = ox + (W - total_w) / 2;
   icon_draw_cloud_rain(ctx,
-      GPoint(start_x + icon_w/2, header_y + UI_HEADER_HEIGHT/2),
+      GPoint(start_x + icon_w/2, oy + header_y + UI_HEADER_HEIGHT/2),
       icon_w, theme_accent_blue(), theme_accent_blue());
   graphics_context_set_text_color(ctx, theme_fg());
   graphics_draw_text(ctx, label, hf,
-      GRect(start_x + icon_w + gap, header_y, tsize.w + 4, UI_HEADER_HEIGHT),
+      GRect(start_x + icon_w + gap, oy + header_y, tsize.w + 4, UI_HEADER_HEIGHT),
       GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 
   // 5 vertical bars. Use more vertical room than before; reserve room
@@ -40,8 +40,8 @@ void card_precipitation_draw(GContext *ctx, GRect bounds) {
   // without moving any other UI element (header, hour labels, banner,
   // and indicator are unchanged).
   const int n = 5;
-  int chart_top = header_y + UI_HEADER_HEIGHT + 10;
-  int chart_bot = PBL_IF_ROUND_ELSE(H - 86, H - 66);
+  int chart_top = oy + header_y + UI_HEADER_HEIGHT + 10;
+  int chart_bot = oy + PBL_IF_ROUND_ELSE(H - 86, H - 66);
   int chart_h = chart_bot - chart_top;
   int bar_w = PBL_IF_ROUND_ELSE(24, 22);
   int bar_gap = PBL_IF_ROUND_ELSE(8, 6);

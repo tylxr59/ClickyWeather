@@ -20,10 +20,9 @@
 #define IDX_SUN    7
 #define IDX_NIGHT  8
 #define IDX_GOLDEN 9
-#define IDX_RADAR  10
 
 static const int s_toggle_to_card_idx[SETTINGS_TOGGLEABLE_COUNT] = {
-  IDX_HOURS, IDX_WEEK, IDX_PRECIP, IDX_UV, IDX_AQ, IDX_SUN, IDX_NIGHT, IDX_GOLDEN, IDX_RADAR,
+  IDX_HOURS, IDX_WEEK, IDX_PRECIP, IDX_UV, IDX_AQ, IDX_SUN, IDX_NIGHT, IDX_GOLDEN,
   IDX_ADVICE,
 };
 
@@ -37,6 +36,8 @@ static void prv_apply_card_visibility(void) {
 // Touch is plumbed for emery / gabbro hardware. Requires firmware >= 5.92.
 // Flip ENABLE_TOUCH to 0 if running against an older simulator that
 // doesn't ship the touch_service API.
+// Currently used only for pull-down-to-refresh; tap navigation is handled
+// by the UP/DOWN/SELECT buttons.
 #define ENABLE_TOUCH 1
 
 static Window *s_window;
@@ -59,23 +60,10 @@ static void touch_handler(const TouchEvent *event, void *context) {
       int16_t dy = event->y - s_start_y;
       int16_t adx = dx < 0 ? -dx : dx;
       int16_t ady = dy < 0 ? -dy : dy;
-      const int16_t HSWIPE_THRESHOLD = 30;
       const int16_t PULLDOWN_THRESHOLD = 60;
-      const int16_t TAP_THRESHOLD = 15;
-      if (adx > HSWIPE_THRESHOLD && adx > ady) {
-        // Horizontal swipe = card nav.
-        if (dx < 0) nav_next();
-        else        nav_prev();
-      } else if (dy > PULLDOWN_THRESHOLD && ady > adx) {
+      if (dy > PULLDOWN_THRESHOLD && ady > adx) {
         // Pull-down = manual refresh.
         comm_request_refresh();
-      } else if (adx < TAP_THRESHOLD && ady < TAP_THRESHOLD) {
-        // Tap (small movement). On the Settings card, advance the
-        // row cursor. Elsewhere we ignore taps for now.
-        if (strcmp(nav_current_name(), "Settings") == 0) {
-          settings_cursor_advance();
-          nav_redraw();
-        }
       }
       s_tracking = false;
       break;
@@ -89,14 +77,8 @@ static void touch_handler(const TouchEvent *event, void *context) {
 static void prv_select_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
   // Context-aware short-press:
-  //   Radar    → retry fetch (bypasses 60s cooldown)
   //   Settings → toggle the highlighted row
   //   Elsewhere → toggle Light/Dark theme
-  if (strcmp(nav_current_name(), "Radar") == 0) {
-    card_radar_force_refresh();
-    nav_redraw();
-    return;
-  }
   if (strcmp(nav_current_name(), "Settings") == 0) {
     int cur = settings_cursor();
     ToggleId tid = settings_visual_id(cur);
@@ -120,11 +102,31 @@ static void prv_select_long(ClickRecognizerRef r, void *ctx) {
 
 static void prv_up_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  if (strcmp(nav_current_name(), "Settings") == 0) {
+    if (settings_cursor() == 0) {
+      // Already at top — escape Settings upward to the previous card.
+      nav_prev();
+      return;
+    }
+    settings_cursor_retreat();
+    nav_redraw();
+    return;
+  }
   nav_prev();
 }
 
 static void prv_down_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  if (strcmp(nav_current_name(), "Settings") == 0) {
+    if (settings_cursor() == SETTINGS_TOGGLEABLE_COUNT - 1) {
+      // Already at bottom — escape Settings downward (wraps to first card).
+      nav_next();
+      return;
+    }
+    settings_cursor_advance();
+    nav_redraw();
+    return;
+  }
   nav_next();
 }
 
@@ -140,7 +142,7 @@ static void prv_window_load(Window *window) {
   nav_init(window);
 
   nav_register("Main", card_main_draw);
-  nav_register("Touch & Go", card_advice_draw);
+  nav_register("Click & Go", card_advice_draw);
   nav_register("6 Hours", card_hours_draw);
   nav_register("Week Ahead", card_week_draw);
   nav_register("Precipitation", card_precipitation_draw);
@@ -149,7 +151,6 @@ static void prv_window_load(Window *window) {
   nav_register("Sun Cycle", card_sun_cycle_draw);
   nav_register("Night Sky", card_night_sky_draw);
   nav_register("Golden Hour", card_golden_hour_draw);
-  nav_register("Radar", card_radar_draw);
   nav_register("Settings", card_settings_draw);
   prv_apply_card_visibility();
   nav_show_index(0);

@@ -1,4 +1,4 @@
-// TouchyWeather Radar Proxy — Vercel serverless function.
+// ClickyWeather Radar Proxy — Vercel serverless function.
 //
 // Returns a 160x160 raw Pebble 8-bit pixel buffer (25,600 bytes) for the
 // requested lat/lon, with a high-detail Carto Voyager basemap composited
@@ -68,7 +68,7 @@ function lonLatToTileXY(lon, lat, z) {
 
 async function fetchPng(url) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'TouchyWeather/1.0 (+https://github.com)' },
+    headers: { 'User-Agent': 'ClickyWeather/1.0 (+https://github.com)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   const buf = Buffer.from(await res.arrayBuffer());

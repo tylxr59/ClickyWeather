@@ -1,5 +1,5 @@
 {
-  "name": "touchyweather-radar-proxy",
+  "name": "clickyweather-proxy",
   "version": "1.0.0",
   "private": true,
   "description": "Vercel serverless proxy that fetches OSM/Carto basemap + RainViewer radar, composites them, and returns raw Pebble 8-bit pixel bytes for a 160x160 image.",

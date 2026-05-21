@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the TouchyWeather menu icon (25x25 PNG).
+"""Generate the ClickyWeather menu icon (25x25 PNG).
 
 Design: bold black silhouette of sun + cloud on transparent background.
 At 25x25 + auto-greyscale conversion in the Pebble launcher, a strong

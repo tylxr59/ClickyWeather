@@ -5,6 +5,7 @@ build/
 node_modules/
 
 # Dev logs
+.kilo
 friction.log
 
 # macOS metadata

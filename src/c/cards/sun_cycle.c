@@ -21,6 +21,7 @@ void card_sun_cycle_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
   int H = bounds.size.h;
+  int oy = bounds.origin.y;
 
   // Header — horizon-sun icon for grid consistency with other cards.
   int header_y = UI_HEADER_Y;
@@ -35,7 +36,7 @@ void card_sun_cycle_draw(GContext *ctx, GRect bounds) {
   int icon_size = 40;
   int gap = 10;
   int row_h = 56;
-  int top_row_y = header_y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(20, 14);
+  int top_row_y = oy + header_y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(20, 14);
   int bot_row_y = top_row_y + row_h;
   GFont time_font = fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD);
 

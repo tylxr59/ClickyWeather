@@ -10,10 +10,10 @@ void card_uv_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
   int H = bounds.size.h;
-  // Slide-transition origin offset (Phase 10F): the card may be drawn
-  // into a horizontally shifted bounds during the 200ms push, so every
-  // X coordinate must be translated by ox to move with the card.
+  // Slide-transition origin offset: translate every coordinate by the
+  // bounds origin so the entire card moves as one rigid unit.
   int ox = bounds.origin.x;
+  int oy = bounds.origin.y;
 
   // Header: small sun + "UV INDEX".
   int header_y = UI_HEADER_Y;
@@ -26,7 +26,7 @@ void card_uv_draw(GContext *ctx, GRect bounds) {
   // Half-arc gauge (180° from -90 to +90).
   int radius = PBL_IF_ROUND_ELSE(72, 64);
   int thickness = 10;
-  GPoint c = { ox + W/2, header_y + UI_HEADER_HEIGHT + 8 + radius };
+  GPoint c = { ox + W/2, oy + header_y + UI_HEADER_HEIGHT + 8 + radius };
   GRect arc_box = GRect(c.x - radius, c.y - radius, radius*2, radius*2);
   // Background track.
   graphics_context_set_fill_color(ctx, theme_muted());

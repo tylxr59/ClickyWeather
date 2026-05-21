@@ -6,10 +6,10 @@
 #define KEY_TOGGLE_BASE      210  // KEY_TOGGLE_BASE + ToggleId
 
 // Visual order of rows in the Settings card. Decoupled from the enum
-// order so Touch & Go appears second (after the locked MAIN row) without
+// order so Click & Go appears second (after the locked MAIN row) without
 // disrupting the persisted toggle keys (KEY_TOGGLE_BASE + ToggleId).
 static const ToggleId s_visual_order[SETTINGS_TOGGLEABLE_COUNT] = {
-  TOGGLE_ADVICE,  // "TOUCH & GO" — second row, right after MAIN
+  TOGGLE_ADVICE,  // "CLICK & GO" — second row, right after MAIN
   TOGGLE_HOURS,
   TOGGLE_WEEK,
   TOGGLE_PRECIP,
@@ -18,7 +18,6 @@ static const ToggleId s_visual_order[SETTINGS_TOGGLEABLE_COUNT] = {
   TOGGLE_SUN,
   TOGGLE_NIGHT,
   TOGGLE_GOLDEN,
-  TOGGLE_RADAR,
 };
 
 ToggleId settings_visual_id(int visual_pos) {
@@ -27,14 +26,14 @@ ToggleId settings_visual_id(int visual_pos) {
 }
 
 static bool s_enabled[SETTINGS_TOGGLEABLE_COUNT] = {
-  true, true, true, true, true, true, true, true, true, true
+  true, true, true, true, true, true, true, true, true
 };
 static int s_cursor = 0;
 
 static const char *s_labels[SETTINGS_TOGGLEABLE_COUNT] = {
   "6 HOURS", "WEEK AHEAD", "RAIN", "UV INDEX",
-  "AIR QUAL", "SUN CYCLE", "NIGHT SKY", "GOLDEN HR", "RADAR",
-  "TOUCH & GO",
+  "AIR QUAL", "SUN CYCLE", "NIGHT SKY", "GOLDEN HR",
+  "CLICK & GO",
 };
 
 void settings_load(void) {
@@ -73,4 +72,8 @@ int settings_cursor(void) { return s_cursor; }
 
 void settings_cursor_advance(void) {
   s_cursor = (s_cursor + 1) % SETTINGS_TOGGLEABLE_COUNT;
+}
+
+void settings_cursor_retreat(void) {
+  s_cursor = (s_cursor - 1 + SETTINGS_TOGGLEABLE_COUNT) % SETTINGS_TOGGLEABLE_COUNT;
 }

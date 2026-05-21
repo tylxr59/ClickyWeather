@@ -1,7 +1,7 @@
 module.exports = [
   {
     "type": "heading",
-    "defaultValue": "TouchyWeather Settings"
+    "defaultValue": "ClickyWeather Settings"
   },
   {
     "type": "text",

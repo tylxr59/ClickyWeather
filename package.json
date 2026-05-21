@@ -1,6 +1,6 @@
 {
-  "name": "TouchyWeather",
-  "author": "MakeAwesomeHappen",
+  "name": "ClickyWeather",
+  "author": "tylxr",
   "version": "1.0.0",
   "keywords": [
     "pebble-app"
@@ -10,8 +10,8 @@
     "@rebble/clay": "^1.0.8"
   },
   "pebble": {
-    "displayName": "TouchyWeather",
-    "uuid": "78a2b21a-d72e-4c5e-b2b0-3aea3e72196b",
+    "displayName": "ClickyWeather",
+    "uuid": "f2f7604a-5d42-4505-9750-66691bb6b0e3",
     "sdkVersion": "3",
     "enableMultiJS": true,
     "capabilities": [
@@ -100,15 +100,6 @@
       "GoldAm",
       "GoldPm",
       "BluePm",
-      "RadarProxyURL",
-      "RadarRequest",
-      "RadarStatus",
-      "RadarChunkIdx",
-      "RadarChunkTotal",
-      "RadarChunkData",
-      "RadarWidth",
-      "RadarHeight",
-      "RadarTimestamp",
       "EnabledMask",
       "UseDewPoint",
       "DewPoint",

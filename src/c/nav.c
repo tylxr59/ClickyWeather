@@ -88,13 +88,13 @@ static void card_layer_update(Layer *layer, GContext *ctx) {
     int32_t inv = 1000 - p1k;
     int32_t eased1k = 1000 - (inv * inv) / 1000;  // 0..1000
 
-    int W = bounds.size.w;
-    // shift: from card moves -dir*W*eased; to card moves from +dir*W to 0
-    int from_dx = -s_anim_dir * (W * eased1k) / 1000;
-    int to_dx   =  s_anim_dir * W + from_dx;
+    int H = bounds.size.h;
+    // shift: from card moves -dir*H*eased; to card moves from +dir*H to 0
+    int from_dy = -s_anim_dir * (H * eased1k) / 1000;
+    int to_dy   =  s_anim_dir * H + from_dy;
 
-    GRect from_b = bounds; from_b.origin.x = bounds.origin.x + from_dx;
-    GRect to_b   = bounds; to_b.origin.x   = bounds.origin.x + to_dx;
+    GRect from_b = bounds; from_b.origin.y = bounds.origin.y + from_dy;
+    GRect to_b   = bounds; to_b.origin.y   = bounds.origin.y + to_dy;
 
     if (s_anim_from_idx >= 0 && s_anim_from_idx < s_card_count &&
         s_cards[s_anim_from_idx].draw) {
@@ -202,7 +202,7 @@ void nav_show_index(int idx) {
 static int prv_step_skip(int from, int dir) {
   // Step from `from` in direction `dir` (+1 or -1), skipping disabled
   // cards. Always returns a valid index because at minimum Main and
-  // Touch & Go (both permanently enabled) are present.
+  // Click & Go (both permanently enabled) are present.
   int idx = from;
   for (int i = 0; i < s_card_count; ++i) {
     idx += dir;

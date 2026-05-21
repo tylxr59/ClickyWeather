@@ -12,15 +12,14 @@
 // toggleable list.
 
 // Number of cards that can be toggled on the Settings screen.
-#define SETTINGS_TOGGLEABLE_COUNT 10
+#define SETTINGS_TOGGLEABLE_COUNT 9
 
 // Toggleable card identifiers (must match the registration order in
-// TouchWeather.c skipping Main and Settings).
+// ClickyWeather.c skipping Main and Settings).
 //
 // TOGGLE_ADVICE was added last (rather than at the top of the enum)
-// so existing persisted toggle values at KEY_TOGGLE_BASE + 0..8 keep
-// their meaning across upgrades. Visual order in the settings card
-// follows this enum order.
+// so visual order in the settings card can differ from enum order
+// without disrupting the persisted toggle keys (KEY_TOGGLE_BASE + ToggleId).
 typedef enum {
   TOGGLE_HOURS = 0,
   TOGGLE_WEEK,
@@ -30,7 +29,6 @@ typedef enum {
   TOGGLE_SUN,
   TOGGLE_NIGHT,
   TOGGLE_GOLDEN,
-  TOGGLE_RADAR,
   TOGGLE_ADVICE,
 } ToggleId;
 
@@ -46,6 +44,7 @@ const char *settings_label(ToggleId id);
 // Cursor on the Settings screen. Wraps within toggleable rows.
 int  settings_cursor(void);
 void settings_cursor_advance(void);
+void settings_cursor_retreat(void);
 
 // Maps a visual row position (0 = first toggleable row) to the
 // ToggleId that should be drawn/toggled there. Decouples the on-screen

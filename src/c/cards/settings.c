@@ -7,16 +7,16 @@
 
 // Phase 10D: Settings / Manage Cards card.
 //
-// Layout: header, 1 LOCKED row (MAIN) + 10 TOGGLEABLE rows, footer hint.
+// Layout: header, 1 LOCKED row (MAIN) + 9 TOGGLEABLE rows, footer hint.
 //
-// Cursor model after Phase 10D:
-//   - TAP screen     → advance cursor to next toggleable row.
+// Cursor model:
+//   - UP button      → retreat cursor to previous toggleable row.
+//   - DOWN button    → advance cursor to next toggleable row.
 //   - SELECT short   → toggle the highlighted row (no auto-advance).
-//   - SELECT long    → app-wide theme toggle (handled in TouchWeather.c).
-//   - UP / DOWN      → previous / next card (unchanged).
+//   - SELECT long    → app-wide theme toggle (handled in ClickyWeather.c).
 //
 // Cursor chevron is drawn in the violet advice accent so it pops
-// against fg labels and matches the Touch & Go card's identity color.
+// against fg labels and matches the Click & Go card's identity color.
 
 #define LOCKED_COUNT 1
 
@@ -35,6 +35,7 @@ static void prv_draw_checkbox(GContext *ctx, GRect r, bool checked) {
 void card_settings_draw(GContext *ctx, GRect bounds) {
   int W = bounds.size.w;
   int H = bounds.size.h;
+  int oy = bounds.origin.y;
 
   ui_draw_card_header_with_icon(ctx, bounds,
       PBL_IF_ROUND_ELSE("MANAGE CARDS", "CARDS"),
@@ -42,7 +43,7 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
 
   GFont row_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
   int row_h = PBL_IF_ROUND_ELSE(15, 14);
-  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(4, 6);
+  int top_y = oy + UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(4, 6);
 
   int box_size = 14;
   int gap = 10;
@@ -104,9 +105,9 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
   // On rect: sits above the dots near the bottom edge.
   {
     GFont hint_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
-    int hint_y = PBL_IF_ROUND_ELSE(H - 22, H - 32);
+    int hint_y = oy + PBL_IF_ROUND_ELSE(H - 22, H - 32);
     graphics_context_set_text_color(ctx, theme_secondary());
-    const char *hint = PBL_IF_ROUND_ELSE("TAP / SELECT", "TAP=MOVE  SELECT=TOGGLE");
+    const char *hint = PBL_IF_ROUND_ELSE("UP / DN / SELECT", "UP/DN=MOVE  SELECT=TOGGLE");
     graphics_draw_text(ctx, hint, hint_font,
         GRect(bounds.origin.x, hint_y, W, 16),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);

@@ -1,4 +1,4 @@
-// TouchyWeather PKJS - Open-Meteo fetcher
+// ClickyWeather PKJS - Open-Meteo fetcher
 // No API key required. Fetches forecast + air-quality and posts AppMessage.
 
 var Clay = require('@rebble/clay');
@@ -220,12 +220,6 @@ function computeGoldenHour(date, lat, lng, utcOffsetSec) {
   };
 }
 
-// Last-known lat/lon (cached so the Radar card can re-fetch without
-// re-running geolocation, and so a Radar request that arrives before
-// any weather fetch still has somewhere to look).
-var lastLat = null;
-var lastLon = null;
-
 function xhr(url, cb) {
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
@@ -244,8 +238,6 @@ function xhr(url, cb) {
 }
 
 function fetchWeather(lat, lon) {
-  lastLat = lat;
-  lastLon = lon;
   var units = getUnits();
   var tempUnit = units === 'metric' ? 'celsius' : 'fahrenheit';
   var windUnit = units === 'metric' ? 'kmh' : 'mph';
@@ -270,7 +262,6 @@ function fetchWeather(lat, lon) {
     if (err) { console.log('forecast err: ' + err.message); return; }
     xhr(aq, function(_e2, aqd) {
       var msg = {};
-      var gotPollenFromOpenMeteo = false;
       try {
         var cur = data.current || {};
         var daily = data.daily || {};
@@ -328,12 +319,10 @@ function fetchWeather(lat, lon) {
         msg.Units = units === 'metric' ? 1 : 0;
         msg.LastUpdated = Math.floor(Date.now() / 1000);
 
-        // Pollen — hybrid strategy:
+        // Pollen — European CAMS strategy:
         //   Europe  → use Open-Meteo CAMS fields already in the AQ
         //             response (free, no quota, zero extra requests).
-        //   Elsewhere → fetchPollen() calls the Google proxy after send.
-        // `gotPollenFromOpenMeteo` is declared outside try so the
-        // sendAppMessage callback can read it.
+        //   Elsewhere → PollenLevel is not set (watch shows no pollen data).
         // Phase 10A: Next 6 Hours (offsets +1h..+6h from current hour).
         var temps = hourly.temperature_2m || [];
         var codes = hourly.weather_code || [];
@@ -401,7 +390,6 @@ function fetchWeather(lat, lon) {
           );
           if (euUpi >= 0) {
             msg.PollenLevel = euUpi;
-            gotPollenFromOpenMeteo = true;
           }
         }
       } catch (e) {
@@ -411,10 +399,6 @@ function fetchWeather(lat, lon) {
       Pebble.sendAppMessage(msg,
         function() {
           console.log('weather sent');
-          // Only call Google proxy for non-European locations.
-          if (!gotPollenFromOpenMeteo) {
-            fetchPollen(lat, lon);
-          }
         },
         function(e) { console.log('send fail: ' + JSON.stringify(e)); }
       );
@@ -443,207 +427,12 @@ function locateAndFetch() {
   );
 }
 
-// ----------------------------------------------------------------------
-// Phase 12: Radar streaming.
-// ----------------------------------------------------------------------
-
-var RADAR_CHUNK_SIZE = 1500;
-// Set this to your deployed Vercel proxy URL.
-// If you configured RADAR_SECRET on the server, append ?key=<your-secret> here.
-// Example: 'https://your-proxy.vercel.app/api/radar?key=abc123'
-// NOTE: remove the ?key=... before committing to the repo.
-var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar?key=REDACTED';
-
-// Pollen proxy shares the same Vercel project + RADAR_SECRET auth key
-// as the radar endpoint, so the URL differs only in the /api path.
-var POLLEN_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/pollen?key=REDACTED';
-
-// Pollen is throttled to one proxy fetch per 6 hours per device.
-// Between fetches the last known level is re-sent from localStorage so
-// the watch always receives an up-to-date (or recently cached) value
-// without burning Google API quota on every weather refresh.
-var POLLEN_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-
-function fetchPollen(lat, lon) {
-  var now = Date.now();
-  var lastFetch = parseInt(localStorage.getItem('pollenFetchedAt') || '0', 10);
-  var cachedLevel = parseInt(localStorage.getItem('pollenLevel') || '-1', 10);
-
-  // If we have a recent cached value, send it immediately and skip the
-  // proxy call entirely — saves both Vercel bandwidth and Google quota.
-  if (now - lastFetch < POLLEN_TTL_MS && lastFetch > 0) {
-    console.log('pollen cached: ' + cachedLevel);
-    Pebble.sendAppMessage({ PollenLevel: cachedLevel },
-      function() {},
-      function(e) { console.log('pollen (cached) send fail: ' + JSON.stringify(e)); }
-    );
-    return;
-  }
-
-  var sep = POLLEN_PROXY_URL.indexOf('?') >= 0 ? '&' : '?';
-  var url = POLLEN_PROXY_URL + sep + 'lat=' + lat + '&lon=' + lon;
-  xhr(url, function(err, data) {
-    if (err) {
-      console.log('pollen err: ' + err.message);
-      // On failure, still send the last known cached value so the watch
-      // isn't stuck waiting. Don't update the timestamp so we retry sooner.
-      if (lastFetch > 0) {
-        Pebble.sendAppMessage({ PollenLevel: cachedLevel }, function() {}, function() {});
-      }
-      return;
-    }
-    var level = (data && typeof data.level === 'number') ? data.level : -1;
-    localStorage.setItem('pollenLevel', String(level));
-    localStorage.setItem('pollenFetchedAt', String(now));
-    Pebble.sendAppMessage({ PollenLevel: level },
-      function() { console.log('pollen sent: ' + level); },
-      function(e) { console.log('pollen send fail: ' + JSON.stringify(e)); }
-    );
-  });
-}
-
-// Hand-rolled base64 decoder for PKJS runtimes lacking `atob`.
-function decodeBase64(s) {
-  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  var lookup = {};
-  for (var i = 0; i < chars.length; i++) lookup[chars.charAt(i)] = i;
-  var out = '';
-  s = String(s).replace(/[^A-Za-z0-9+/]/g, '');
-  for (var j = 0; j < s.length; j += 4) {
-    var n = (lookup[s.charAt(j)] << 18) |
-            (lookup[s.charAt(j + 1)] << 12) |
-            ((lookup[s.charAt(j + 2)] || 0) << 6) |
-            (lookup[s.charAt(j + 3)] || 0);
-    out += String.fromCharCode((n >> 16) & 0xff);
-    if (s.charAt(j + 2) !== '=' && s.charAt(j + 2) !== '')
-      out += String.fromCharCode((n >> 8) & 0xff);
-    if (s.charAt(j + 3) !== '=' && s.charAt(j + 3) !== '')
-      out += String.fromCharCode(n & 0xff);
-  }
-  return out;
-}
-
-function getRadarProxyURL() {
-  return RADAR_PROXY_URL;
-}
-
-function sendRadarStatus(status) {
-  Pebble.sendAppMessage({ RadarStatus: status });
-}
-
-function sendRadarChunk(chunkIdx, total, w, h, ts, byteArr, onAllDone) {
-  function send() {
-    var msg = {
-      RadarChunkIdx: chunkIdx,
-      RadarChunkTotal: total,
-      RadarChunkData: byteArr,
-      RadarWidth: w,
-      RadarHeight: h,
-      RadarTimestamp: ts,
-    };
-    Pebble.sendAppMessage(msg, function() {
-      if (chunkIdx + 1 >= total) {
-        if (onAllDone) onAllDone();
-      }
-    }, function(e) {
-      // Retry once after a brief pause; transient drop is common when
-      // the watch is busy redrawing.
-      console.log('radar chunk ' + chunkIdx + ' failed, retrying');
-      setTimeout(send, 1500);
-    });
-  }
-  send();
-}
-
-function fetchRadar() {
-  var proxy = getRadarProxyURL();
-  if (!proxy) {
-    console.log('radar: no RadarProxyURL configured');
-    sendRadarStatus(3);
-    return;
-  }
-  if (lastLat === null || lastLon === null) {
-    // Trigger geolocation, then radar.
-    navigator.geolocation.getCurrentPosition(function(pos) {
-      lastLat = pos.coords.latitude;
-      lastLon = pos.coords.longitude;
-      fetchRadar();
-    }, function() {
-      sendRadarStatus(3);
-    }, { timeout: 15000, maximumAge: 600000 });
-    return;
-  }
-
-  var url = proxy + (proxy.indexOf('?') >= 0 ? '&' : '?') +
-            'lat=' + lastLat + '&lon=' + lastLon + '&format=base64';
-  console.log('radar: fetching ' + url);
-
-  var x = new XMLHttpRequest();
-  x.open('GET', url, true);
-  x.timeout = 25000;
-  x.onload = function() {
-    if (x.status !== 200) {
-      console.log('radar: proxy HTTP ' + x.status);
-      sendRadarStatus(3);
-      return;
-    }
-    var ts = parseInt(x.getResponseHeader('X-Radar-Time') || '0', 10) || 0;
-    // Decode base64 → byte array. PKJS may lack atob; fall back to a
-    // hand-rolled decoder.
-    var b64 = (x.responseText || '').trim();
-    var bin;
-    try {
-      bin = (typeof atob === 'function')
-        ? atob(b64)
-        : decodeBase64(b64);
-    } catch (err) {
-      console.log('radar: base64 decode err ' + err.message);
-      sendRadarStatus(3);
-      return;
-    }
-    var total_bytes = bin.length;
-    var w = 160, h = 160;
-    if (total_bytes !== w * h) {
-      console.log('radar: unexpected payload size ' + total_bytes);
-    }
-    var totalChunks = Math.ceil(total_bytes / RADAR_CHUNK_SIZE);
-    console.log('radar: ' + total_bytes + 'B -> ' + totalChunks + ' chunks');
-
-    function sendChunk(i) {
-      if (i >= totalChunks) return;
-      var start = i * RADAR_CHUNK_SIZE;
-      var end = Math.min(start + RADAR_CHUNK_SIZE, total_bytes);
-      var slice = new Array(end - start);
-      for (var k = 0; k < slice.length; k++) slice[k] = bin.charCodeAt(start + k);
-      sendRadarChunk(i, totalChunks, w, h, ts, slice, function() {
-        // all done
-      });
-      setTimeout(function() { sendChunk(i + 1); }, 80);
-    }
-    sendChunk(0);
-  };
-  x.onerror = function() {
-    console.log('radar: xhr error');
-    sendRadarStatus(3);
-  };
-  x.ontimeout = function() {
-    console.log('radar: xhr timeout');
-    sendRadarStatus(3);
-  };
-  x.send();
-}
-
 Pebble.addEventListener('ready', function() {
-  console.log('TouchyWeather PKJS ready');
+  console.log('ClickyWeather PKJS ready');
   locateAndFetch();
 });
 
-Pebble.addEventListener('appmessage', function(e) {
-  var p = (e && e.payload) || {};
-  if (p.RadarRequest) {
-    fetchRadar();
-    return;
-  }
+Pebble.addEventListener('appmessage', function() {
   locateAndFetch();
 });
 
