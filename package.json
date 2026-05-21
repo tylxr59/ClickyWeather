@@ -115,7 +115,9 @@
       "Toggle8",
       "Toggle9",
       "AlertActive",
-      "AlertCategory"
+      "AlertCategory",
+      "WindGust",
+      "PrecipAmount"
     ],
     "resources": {
     "media": [

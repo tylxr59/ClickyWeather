@@ -280,8 +280,8 @@ function fetchWeather(lat, lon) {
 
   var fc = 'https://api.open-meteo.com/v1/forecast' +
     '?latitude=' + lat + '&longitude=' + lon +
-    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m' +
-    '&hourly=temperature_2m,weather_code,precipitation_probability' +
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+    '&hourly=temperature_2m,weather_code,precipitation_probability,precipitation' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
     '&temperature_unit=' + tempUnit +
     '&wind_speed_unit=' + windUnit +
@@ -309,6 +309,7 @@ function fetchWeather(lat, lon) {
         msg.UseDewPoint = getUseDewPoint() ? 1 : 0;
         msg.Wind = Math.round(cur.wind_speed_10m);
         msg.WindDir = degToCompass(cur.wind_direction_10m || 0);
+        msg.WindGust = Math.round(cur.wind_gusts_10m || 0);
         msg.Condition = mapWeatherCode(cur.weather_code);
         if (daily.temperature_2m_max && daily.temperature_2m_max.length) {
           msg.High = Math.round(daily.temperature_2m_max[0]);
@@ -349,6 +350,11 @@ function fetchWeather(lat, lon) {
           }
         }
         msg.RainAlertMinutes = alert;
+        // Precipitation amount for the current hour (mm×10 integer, always metric
+        // from Open-Meteo regardless of wind_speed_unit). C converts to
+        // tenths-of-inch for imperial display at render time.
+        var precipMm = (hourly.precipitation || [])[startIdx] || 0;
+        msg.PrecipAmount = Math.round(precipMm * 10);
         if (aqd && aqd.current) {
           msg.AQI = Math.round(aqd.current.us_aqi || 0);
         }

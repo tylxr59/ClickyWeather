@@ -18,7 +18,7 @@ void card_main_draw(GContext *ctx, GRect bounds) {
 
   // Hero condition icon, centered, top.
   int icon_size = 48;
-  int icon_y = PBL_IF_ROUND_ELSE(28, 22);
+  int icon_y = PBL_IF_ROUND_ELSE(20, 14);
   icon_draw_condition_animated(ctx, GPoint(ox + W / 2, oy + icon_y + icon_size/2),
                                icon_size, d->condition, anim_get_frame());
 
@@ -29,7 +29,7 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   char temp_buf[8];
   snprintf(temp_buf, sizeof(temp_buf), "%d°", d->temp);
   GFont temp_font = fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS);
-  int temp_y = PBL_IF_ROUND_ELSE(60, 60);
+  int temp_y = PBL_IF_ROUND_ELSE(40, 40);
   int temp_h = 50;
   int hilo_w = 52;
   GRect temp_r = GRect(bounds.origin.x + margin, oy + temp_y,
@@ -38,29 +38,28 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   graphics_draw_text(ctx, temp_buf, temp_font, temp_r,
                      GTextOverflowModeFill, GTextAlignmentLeft, NULL);
 
-  // Hi/Lo column on the right (symmetric margin from right edge).
-  // Right-align the values so visible "64°/33°" hug W-margin, matching
-  // the temp text on the left which hugs the left margin. This makes the
-  // edge whitespace symmetric without changing the orientation/structure.
+  // Hi/Lo column on the right. Arrow immediately left of the number,
+  // both left-aligned within the hilo_w column so they stay together.
   int hilo_x = bounds.origin.x + W - margin - hilo_w;
-  // Up arrow + "5°"
-  icon_draw_arrow_up(ctx, GPoint(hilo_x, oy + temp_y + 10), 10,
+  int arrow_size = 10;
+  // Up arrow + high temp — arrow at left edge, text offset by arrow width + 2px gap.
+  icon_draw_arrow_up(ctx, GPoint(hilo_x + arrow_size/2, oy + temp_y + 10), arrow_size,
                      theme_accent_orange());
   char hi_buf[8]; snprintf(hi_buf, sizeof(hi_buf), "%d°", d->high);
   graphics_context_set_text_color(ctx, theme_accent_orange());
   graphics_draw_text(ctx, hi_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(hilo_x + 10, oy + temp_y + 2, hilo_w - 10, 22),
+                     GRect(hilo_x + arrow_size + 2, oy + temp_y + 2, hilo_w - arrow_size - 2, 22),
                      GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentRight, NULL);
-  // Down arrow + "2°"
-  icon_draw_arrow_down(ctx, GPoint(hilo_x, oy + temp_y + 32), 10,
+                     GTextAlignmentLeft, NULL);
+  // Down arrow + low temp.
+  icon_draw_arrow_down(ctx, GPoint(hilo_x + arrow_size/2, oy + temp_y + 32), arrow_size,
                        theme_accent_blue());
   char lo_buf[8]; snprintf(lo_buf, sizeof(lo_buf), "%d°", d->low);
   graphics_context_set_text_color(ctx, theme_accent_blue());
   graphics_draw_text(ctx, lo_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(hilo_x + 10, oy + temp_y + 24, hilo_w - 10, 22),
+                     GRect(hilo_x + arrow_size + 2, oy + temp_y + 24, hilo_w - arrow_size - 2, 22),
                      GTextOverflowModeTrailingEllipsis,
-                     GTextAlignmentRight, NULL);
+                     GTextAlignmentLeft, NULL);
 
   // "FEELS 75°" centered below big temp — bumped to 24_BOLD.
   char feels_buf[16];
@@ -73,8 +72,9 @@ void card_main_draw(GContext *ctx, GRect bounds) {
                      GTextAlignmentCenter, NULL);
 
   // Bottom split row: wind | humidity. Sits above the rain banner.
-  // emery moved 8px down to make room for the larger FEELS text.
-  int row_y = PBL_IF_ROUND_ELSE(H - 104, H - 84);
+  // Pulled up vs original to make room for the second detail row below.
+  // row_y = row2_y - 36. row2_y anchored from banner top: H - pad_bottom(22/40) - banner_h(22) - 22.
+  int row_y = PBL_IF_ROUND_ELSE(H - 120, H - 102);
   // Vertical divider.
   graphics_context_set_stroke_color(ctx, theme_muted());
   graphics_context_set_stroke_width(ctx, 1);
@@ -105,6 +105,46 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   graphics_draw_text(ctx, hum_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                      GRect(ox + W/2, oy + row_y + 16, W/2, 22),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
+
+  // Second detail row: wind gusts | precipitation amount.
+  // No icons — text only, smaller font, muted color.
+  // Anchored 22px above banner top: H - pad_bottom(22/40) - banner_h(22) - 22.
+  int row2_y = PBL_IF_ROUND_ELSE(H - 84, H - 66);
+  // Single shared divider line for this row.
+  graphics_context_set_stroke_color(ctx, theme_muted());
+  graphics_context_set_stroke_width(ctx, 1);
+  graphics_draw_line(ctx, GPoint(ox + W/2, oy + row2_y), GPoint(ox + W/2, oy + row2_y + 18));
+
+  // Left column: gust speed.
+  char gust_buf[20];
+  if (d->units == UNITS_METRIC) {
+    snprintf(gust_buf, sizeof(gust_buf), "%dKMH GUSTS", d->wind_gust);
+  } else {
+    snprintf(gust_buf, sizeof(gust_buf), "%dMPH GUSTS", d->wind_gust);
+  }
+  graphics_context_set_text_color(ctx, theme_fg());
+  graphics_draw_text(ctx, gust_buf,
+                     fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                     GRect(ox, oy + row2_y + 2, W/2, 18),
+                     GTextOverflowModeTrailingEllipsis,
+                     GTextAlignmentCenter, NULL);
+
+  // Right column: precip amount. precip_amount is mm×10 from PKJS.
+  char pa_buf[32];
+  if (d->units == UNITS_IMPERIAL) {
+    // mm×10 → tenths-of-inches: (mm×10 * 10) / 254 = mm×100 / 254
+    int tenths_in = (d->precip_amount * 10) / 254;
+    snprintf(pa_buf, sizeof(pa_buf), "%d.%dIN PRECIP", tenths_in / 10, tenths_in % 10);
+  } else {
+    snprintf(pa_buf, sizeof(pa_buf), "%d.%dMM PRECIP",
+             d->precip_amount / 10, d->precip_amount % 10);
+  }
+  graphics_context_set_text_color(ctx, theme_fg());
+  graphics_draw_text(ctx, pa_buf,
+                     fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+                     GRect(ox + W/2, oy + row2_y + 2, W/2, 18),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 

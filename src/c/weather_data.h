@@ -35,7 +35,10 @@ typedef struct {
   int low;
   WeatherCondition condition;
   int wind_speed;      // mph or km/h
+  int wind_gust;       // mph or km/h (matches `units`)
   char wind_dir[4];    // "NW", "ENE", etc.
+  int precip_amount;   // mm×10 always from PKJS; render-time converts to
+                       // tenths-of-inch for imperial display
   int humidity;        // %
   int dew_point;       // °F or °C (matches `units`)
   bool use_dew_point;  // true → main card shows dew point instead of humidity

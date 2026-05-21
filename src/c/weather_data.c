@@ -10,6 +10,7 @@ void weather_data_init_mock(void) {
   s_data.low = 2;    // shown as ↓2°
   s_data.condition = COND_SUNNY;
   s_data.wind_speed = 12;
+  s_data.wind_gust = 28;         // 28 mph gusts (mock)
   strncpy(s_data.wind_dir, "NW", sizeof(s_data.wind_dir));
   s_data.humidity = 15;
   s_data.dew_point = 52;
@@ -24,6 +25,7 @@ void weather_data_init_mock(void) {
   strncpy(s_data.sunrise, "6:14 AM", sizeof(s_data.sunrise));
   strncpy(s_data.sunset, "7:45 PM", sizeof(s_data.sunset));
   s_data.rain_alert_min = 15;
+  s_data.precip_amount = 81;     // ~0.3in (8.1mm → mm×10=81; renders "0.3IN PRECIP")
   s_data.units = UNITS_IMPERIAL;
   s_data.last_updated = 0;
   s_data.valid = true;

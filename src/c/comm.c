@@ -14,7 +14,8 @@ static CommUpdateCb s_update_cb = NULL;
 // (10 bytes each).
 // Bumped 102 -> 103 when dew_point/use_dew_point/pollen_level were added.
 // Bumped 103 -> 104 when alert_active/alert_category were added.
-#define PERSIST_KEY_CACHE 104
+// Bumped 104 -> 105 when wind_gust/precip_amount were added.
+#define PERSIST_KEY_CACHE 105
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -86,6 +87,8 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_AlertCategory))) {
     d->alert_category = (AlertCategory)t->value->int32;
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_WindGust)))     { d->wind_gust = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_PrecipAmount))) { d->precip_amount = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip0))) { d->precip[0] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip1))) { d->precip[1] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip2))) { d->precip[2] = t->value->int32; }
