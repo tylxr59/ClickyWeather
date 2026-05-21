@@ -72,6 +72,42 @@ function getUseDewPoint() {
   return localStorage.getItem('useDewPoint') === '1';
 }
 
+// Returns true when coordinates are within the contiguous US + Alaska
+// bounding box. NWS alerts are only available for US points.
+function isUS(lat, lon) {
+  return lat >= 24 && lat <= 50 && lon >= -125 && lon <= -66;
+}
+
+// Alert category enum values — must match AlertCategory in weather_data.h.
+var ALERT_CAT = {
+  NONE:    0,
+  WIND:    1,
+  HEAT:    2,
+  COLD:    3,
+  FLOOD:   4,
+  TORNADO: 5,
+  WINTER:  6,
+  OTHER:   7,
+  UNKNOWN: -1
+};
+
+// Map an NWS event string to an alert category integer.
+// Matching is case-insensitive substring check. Order matters: more-
+// specific patterns (e.g. "wind chill") must precede generic ones ("wind").
+function nwsEventToCategory(event) {
+  var e = (event || '').toLowerCase();
+  if (e.indexOf('tornado') >= 0 || e.indexOf('hurricane') >= 0 ||
+      e.indexOf('typhoon') >= 0) return ALERT_CAT.TORNADO;
+  if (e.indexOf('cold') >= 0 || e.indexOf('wind chill') >= 0 ||
+      e.indexOf('freeze') >= 0 || e.indexOf('frost') >= 0) return ALERT_CAT.COLD;
+  if (e.indexOf('wind') >= 0) return ALERT_CAT.WIND;
+  if (e.indexOf('heat') >= 0) return ALERT_CAT.HEAT;
+  if (e.indexOf('flood') >= 0) return ALERT_CAT.FLOOD;
+  if (e.indexOf('winter') >= 0 || e.indexOf('blizzard') >= 0 ||
+      e.indexOf('ice storm') >= 0 || e.indexOf('snow') >= 0) return ALERT_CAT.WINTER;
+  return ALERT_CAT.OTHER;
+}
+
 // Returns true when coordinates are within continental Europe + UK +
 // Scandinavia. Open-Meteo CAMS pollen data is reliable inside this box;
 // outside it we fall back to the Google Pollen proxy.
@@ -392,16 +428,63 @@ function fetchWeather(lat, lon) {
             msg.PollenLevel = euUpi;
           }
         }
+
+        // Weather alerts — three cases:
+        //   US  → NWS free public API (chained XHR below)
+        //   EU  → synthetic: WMO daily code ≥ 95 = severe thunderstorm
+        //   Else→ ALERT_CAT_UNKNOWN (-1), shown as "NO DATA"
+        if (isEurope(lat, lon)) {
+          var todayCode = (daily.weather_code || [])[0] || 0;
+          if (todayCode >= 95) {
+            msg.AlertActive   = 1;
+            msg.AlertCategory = ALERT_CAT.TORNADO; // closest severe category
+          } else {
+            msg.AlertActive   = 0;
+            msg.AlertCategory = ALERT_CAT.NONE;
+          }
+          // EU path: send immediately (no extra XHR needed).
+          Pebble.sendAppMessage(msg,
+            function() { console.log('weather sent'); },
+            function(e) { console.log('send fail: ' + JSON.stringify(e)); }
+          );
+        } else if (isUS(lat, lon)) {
+          // US path: fetch NWS alerts then send.
+          var nwsUrl = 'https://api.weather.gov/alerts/active?point=' +
+                       lat + '%2C' + lon +
+                       '&status=actual&message_type=alert';
+          xhr(nwsUrl, function(_enws, nwsd) {
+            try {
+              var features = nwsd && nwsd.features;
+              if (features && features.length > 0) {
+                var event = features[0].properties && features[0].properties.event;
+                msg.AlertActive   = 1;
+                msg.AlertCategory = nwsEventToCategory(event);
+              } else {
+                msg.AlertActive   = 0;
+                msg.AlertCategory = ALERT_CAT.NONE;
+              }
+            } catch (enws2) {
+              msg.AlertActive   = 0;
+              msg.AlertCategory = ALERT_CAT.NONE;
+            }
+            Pebble.sendAppMessage(msg,
+              function() { console.log('weather sent'); },
+              function(e) { console.log('send fail: ' + JSON.stringify(e)); }
+            );
+          });
+        } else {
+          // Elsewhere: no alert data available.
+          msg.AlertActive   = 0;
+          msg.AlertCategory = ALERT_CAT.UNKNOWN;
+          Pebble.sendAppMessage(msg,
+            function() { console.log('weather sent'); },
+            function(e) { console.log('send fail: ' + JSON.stringify(e)); }
+          );
+        }
       } catch (e) {
         console.log('parse err: ' + e.message);
         return;
       }
-      Pebble.sendAppMessage(msg,
-        function() {
-          console.log('weather sent');
-        },
-        function(e) { console.log('send fail: ' + JSON.stringify(e)); }
-      );
     });
   });
 }
@@ -463,7 +546,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   // Handle card toggle settings and build EnabledMask.
   // Each bit in EnabledMask represents a card's enabled state (bit 0 = Toggle0, etc).
   var enabledMask = 0;
-  for (var i = 0; i < 9; i++) {
+  for (var i = 0; i < 10; i++) {
     var key = 'Toggle' + i;
     if (dict[key] !== undefined && dict[key].value) {
       enabledMask |= (1 << i);

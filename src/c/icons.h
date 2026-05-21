@@ -52,3 +52,6 @@ void icon_draw_moon_phase(GContext *ctx, GPoint center, int size,
 // Phase 8: settings gear and lock icon.
 void icon_draw_settings_gear(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_lock_small(GContext *ctx, GPoint center, int size, GColor color);
+
+// Phase 9: warning triangle for alerts.
+void icon_draw_warning_triangle(GContext *ctx, GPoint center, int size, GColor color);

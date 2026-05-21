@@ -11,18 +11,19 @@
 // nav_register order below — kept in one place so it's obvious what
 // shifts if cards are reordered.
 #define IDX_ADVICE 1
-#define IDX_HOURS  2
-#define IDX_WEEK   3
-#define IDX_PRECIP 4
-#define IDX_UV     5
-#define IDX_AQ     6
-#define IDX_SUN    7
-#define IDX_NIGHT  8
-#define IDX_GOLDEN 9
+#define IDX_ALERTS 2
+#define IDX_HOURS  3
+#define IDX_WEEK   4
+#define IDX_PRECIP 5
+#define IDX_UV     6
+#define IDX_AQ     7
+#define IDX_SUN    8
+#define IDX_NIGHT  9
+#define IDX_GOLDEN 10
 
 static const int s_toggle_to_card_idx[SETTINGS_TOGGLEABLE_COUNT] = {
   IDX_HOURS, IDX_WEEK, IDX_PRECIP, IDX_UV, IDX_AQ, IDX_SUN, IDX_NIGHT, IDX_GOLDEN,
-  IDX_ADVICE,
+  IDX_ADVICE, IDX_ALERTS,
 };
 
 static void prv_apply_card_visibility(void) {
@@ -110,6 +111,7 @@ static void prv_window_load(Window *window) {
 
   nav_register("Main", card_main_draw);
   nav_register("Click & Go", card_advice_draw);
+  nav_register("Alerts", card_alerts_draw);
   nav_register("6 Hours", card_hours_draw);
   nav_register("Week Ahead", card_week_draw);
   nav_register("Precipitation", card_precipitation_draw);

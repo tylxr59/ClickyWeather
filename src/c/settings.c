@@ -18,6 +18,7 @@ static const ToggleId s_visual_order[SETTINGS_TOGGLEABLE_COUNT] = {
   TOGGLE_SUN,
   TOGGLE_NIGHT,
   TOGGLE_GOLDEN,
+  TOGGLE_ALERTS,  // before TOGGLE_ADVICE in visual terms but appended last in enum
 };
 
 ToggleId settings_visual_id(int visual_pos) {
@@ -26,14 +27,14 @@ ToggleId settings_visual_id(int visual_pos) {
 }
 
 static bool s_enabled[SETTINGS_TOGGLEABLE_COUNT] = {
-  true, true, true, true, true, true, true, true, true
+  true, true, true, true, true, true, true, true, true, true
 };
 static int s_cursor = 0;
 
 static const char *s_labels[SETTINGS_TOGGLEABLE_COUNT] = {
   "6 HOURS", "WEEK AHEAD", "RAIN", "UV INDEX",
   "AIR QUAL", "SUN CYCLE", "NIGHT SKY", "GOLDEN HR",
-  "CLICK & GO",
+  "CLICK & GO", "ALERTS",
 };
 
 void settings_load(void) {

@@ -556,3 +556,48 @@ void icon_draw_lock_small(GContext *ctx, GPoint c, int size, GColor color) {
   graphics_draw_arc(ctx, arc_bb, GOvalScaleModeFitCircle,
                     DEG_TO_TRIGANGLE(-180), DEG_TO_TRIGANGLE(-90));
 }
+
+void icon_draw_warning_triangle(GContext *ctx, GPoint c, int size, GColor color) {
+  // Equilateral triangle pointing up, centered on c.
+  int half  = size / 2;
+  int top_y = -half;
+  int bot_y = half;
+  int bot_x = half;
+
+  GPathInfo info = (GPathInfo) {
+    .num_points = 3,
+    .points = (GPoint[]) {
+      {  0,     top_y },   // apex
+      { -bot_x, bot_y },   // bottom-left
+      {  bot_x, bot_y },   // bottom-right
+    }
+  };
+  GPath *p = gpath_create(&info);
+  gpath_move_to(p, c);
+  graphics_context_set_fill_color(ctx, color);
+  gpath_draw_filled(ctx, p);
+  gpath_destroy(p);
+
+  // Draw the "!" — a short vertical stroke + dot centered in the triangle.
+  // Visual center of an equilateral triangle is 1/3 up from the base.
+  // Since base is at +half, center is at half/3 below c (roughly c.y + half/3).
+  int cx = c.x;
+  int center_y = c.y + size / 6;  // Adjusted to visual centroid
+  int line_top_y = center_y - size / 3;      // Slightly longer line
+  int line_bot_y = center_y - size / 22;     // Slightly longer at bottom
+  int dot_y = center_y + size / 5;           // Move dot down more
+
+  // Use white for the exclamation mark to contrast against the colored triangle.
+  GColor fg = GColorWhite;
+  
+  // Scale stroke and dot with icon size.
+  int stroke_width = (size / 8);
+  if (stroke_width < 1) stroke_width = 1;
+  set_stroke(ctx, fg, stroke_width);
+  graphics_draw_line(ctx, GPoint(cx, line_top_y), GPoint(cx, line_bot_y));
+  
+  graphics_context_set_fill_color(ctx, fg);
+  int dot_radius = (size / 16);
+  if (dot_radius < 1) dot_radius = 1;
+  graphics_fill_circle(ctx, GPoint(cx, dot_y), dot_radius);
+}

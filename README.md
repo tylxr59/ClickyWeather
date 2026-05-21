@@ -36,6 +36,7 @@ ClickyWeather is a carousel of focused weather cards:
 - **Sun Cycle** — sunrise/sunset timing
 - **Night Sky** — moon phase + illumination
 - **Golden Hour** — blue/golden hour timing blocks
+- **Alerts** — active weather alerts by severity with color-coded categories
 
 ---
 
@@ -99,6 +100,11 @@ Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use U
      <td><img src="screenshots/fresh/golden_gabbro.png" width="144"></td>
      <td><strong>Golden Hour</strong><br>Blue-hour and golden-hour start times for both morning and evening, colour-coded in blue and gold. Perfect for photographers chasing the best light.</td>
    </tr>
+  <tr>
+     <td><img src="screenshots/fresh/alerts_emery.png" width="144"></td>
+     <td><img src="screenshots/fresh/alerts_gabbro.png" width="144"></td>
+     <td><strong>Alerts</strong><br>Weather alerts for your region, color-coded by severity (red for tornadoes, orange for wind/heat, blue for flood, etc.). Shows "ALL CLEAR" when no alerts are active. Displays "NO DATA" if the region isn't covered by an alert source.</td>
+   </tr>
  </table>
 
 ---
@@ -107,9 +113,9 @@ Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use U
 
 ClickyWeather lets you customize which cards appear on your watch through the **phone app settings**.
 
-Open the phone app's configuration page and navigate to the **Cards** section. Toggle any of the 9 optional cards on or off to build your ideal weather deck:
+Open the phone app's configuration page and navigate to the **Cards** section. Toggle any of the 10 optional cards on or off to build your ideal weather deck:
 
-- **6 Hours**, **Week Ahead**, **Precipitation**, **UV Index**, **Air Quality**, **Sun Cycle**, **Night Sky**, **Golden Hour**, **Click & Go**
+- **6 Hours**, **Week Ahead**, **Precipitation**, **UV Index**, **Air Quality**, **Sun Cycle**, **Night Sky**, **Golden Hour**, **Alerts**, **Click & Go**
 
 Your choices sync to the watch immediately. This means you can run ultra-minimal (just core weather) or full nerd mode (everything enabled).
 

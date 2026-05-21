@@ -130,14 +130,20 @@ module.exports = [
          "label": "Golden Hour",
          "defaultValue": true
        },
-       {
-         "type": "toggle",
-         "messageKey": "Toggle8",
-         "label": "Click & Go",
-         "defaultValue": true
-       }
-     ]
-   },
+        {
+          "type": "toggle",
+          "messageKey": "Toggle8",
+          "label": "Click & Go",
+          "defaultValue": true
+        },
+        {
+          "type": "toggle",
+          "messageKey": "Toggle9",
+          "label": "Alerts",
+          "defaultValue": true
+        }
+      ]
+    },
   {
     "type": "submit",
     "defaultValue": "Save"

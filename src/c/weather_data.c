@@ -75,6 +75,11 @@ void weather_data_init_mock(void) {
 
   // Pollen unknown until PKJS proxy responds; -1 hides the badge.
   s_data.pollen_level = -1;
+
+  // Alerts mock: active TORNADO warning so the emulator exercises the
+  // alert card's active-alert path without needing live NWS data.
+  s_data.alert_active   = true;
+  s_data.alert_category = ALERT_CAT_TORNADO;
 }
 
 WeatherData *weather_data_get(void) { return &s_data; }

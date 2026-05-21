@@ -2,6 +2,18 @@
 #include <pebble.h>
 
 typedef enum {
+  ALERT_CAT_NONE    = 0,  // no active alert (show ALL CLEAR)
+  ALERT_CAT_WIND    = 1,
+  ALERT_CAT_HEAT    = 2,
+  ALERT_CAT_COLD    = 3,
+  ALERT_CAT_FLOOD   = 4,
+  ALERT_CAT_TORNADO = 5,
+  ALERT_CAT_WINTER  = 6,  // winter storm / blizzard
+  ALERT_CAT_OTHER   = 7,
+  ALERT_CAT_UNKNOWN = -1, // region not covered — show "NO DATA"
+} AlertCategory;
+
+typedef enum {
   COND_SUNNY = 0,
   COND_PARTLY_CLOUDY = 1,
   COND_CLOUDY = 2,
@@ -79,6 +91,12 @@ typedef struct {
   // grass/tree/weed indexes. -1 means "unknown / not covered" — the
   // air quality card should skip the pollen badge in that case.
   int pollen_level;
+
+  // Weather alerts. alert_active is true when an alert is in effect.
+  // alert_category identifies the type. ALERT_CAT_UNKNOWN (-1) means
+  // the region is not covered by any alert source (show "NO DATA").
+  bool          alert_active;
+  AlertCategory alert_category;
 } WeatherData;
 
 void weather_data_init_mock(void);

@@ -12,7 +12,7 @@
 // toggleable list.
 
 // Number of cards that can be toggled on the Settings screen.
-#define SETTINGS_TOGGLEABLE_COUNT 9
+#define SETTINGS_TOGGLEABLE_COUNT 10
 
 // Toggleable card identifiers (must match the registration order in
 // ClickyWeather.c skipping Main and Settings).
@@ -30,6 +30,7 @@ typedef enum {
   TOGGLE_NIGHT,
   TOGGLE_GOLDEN,
   TOGGLE_ADVICE,
+  TOGGLE_ALERTS,   // appended last to preserve all existing persist keys
 } ToggleId;
 
 void settings_load(void);
