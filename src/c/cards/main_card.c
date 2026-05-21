@@ -31,7 +31,7 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   GFont temp_font = fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS);
   int temp_y = PBL_IF_ROUND_ELSE(40, 40);
   int temp_h = 50;
-  int hilo_w = 52;
+  int hilo_w = 58;
   GRect temp_r = GRect(bounds.origin.x + margin, oy + temp_y,
                        W - 2 * margin - hilo_w, temp_h);
   graphics_context_set_text_color(ctx, theme_fg());
@@ -40,24 +40,27 @@ void card_main_draw(GContext *ctx, GRect bounds) {
 
   // Hi/Lo column on the right. Arrow immediately left of the number,
   // both left-aligned within the hilo_w column so they stay together.
-  int hilo_x = bounds.origin.x + W - margin - hilo_w;
-  int arrow_size = 10;
-  // Up arrow + high temp — arrow at left edge, text offset by arrow width + 2px gap.
-  icon_draw_arrow_up(ctx, GPoint(hilo_x + arrow_size/2, oy + temp_y + 10), arrow_size,
+  // Using GOTHIC_24_BOLD: cap-height ~18px, top bearing ~4px in a 28px box.
+  // Arrow center is tuned to sit at mid cap-height (~13px below box top).
+  int hilo_x = bounds.origin.x + W - margin - hilo_w + 4;
+  int arrow_size = 12;
+  GFont hilo_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
+  // Up arrow + high temp.
+  icon_draw_arrow_up(ctx, GPoint(hilo_x + arrow_size/2, oy + temp_y + 15), arrow_size,
                      theme_accent_orange());
   char hi_buf[8]; snprintf(hi_buf, sizeof(hi_buf), "%d°", d->high);
   graphics_context_set_text_color(ctx, theme_accent_orange());
-  graphics_draw_text(ctx, hi_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(hilo_x + arrow_size + 2, oy + temp_y + 2, hilo_w - arrow_size - 2, 22),
+  graphics_draw_text(ctx, hi_buf, hilo_font,
+                     GRect(hilo_x + arrow_size + 5, oy + temp_y, hilo_w - arrow_size - 5, 28),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
   // Down arrow + low temp.
-  icon_draw_arrow_down(ctx, GPoint(hilo_x + arrow_size/2, oy + temp_y + 32), arrow_size,
+  icon_draw_arrow_down(ctx, GPoint(hilo_x + arrow_size/2, oy + temp_y + 39), arrow_size,
                        theme_accent_blue());
   char lo_buf[8]; snprintf(lo_buf, sizeof(lo_buf), "%d°", d->low);
   graphics_context_set_text_color(ctx, theme_accent_blue());
-  graphics_draw_text(ctx, lo_buf, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
-                     GRect(hilo_x + arrow_size + 2, oy + temp_y + 24, hilo_w - arrow_size - 2, 22),
+  graphics_draw_text(ctx, lo_buf, hilo_font,
+                     GRect(hilo_x + arrow_size + 5, oy + temp_y + 22, hilo_w - arrow_size - 5, 28),
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentLeft, NULL);
 
