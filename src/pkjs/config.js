@@ -52,25 +52,92 @@ module.exports = [
       }
     ]
   },
-  {
-    "type": "section",
-    "items": [
-      {
-        "type": "heading",
-        "defaultValue": "Location"
-      },
-      {
-        "type": "input",
-        "messageKey": "LocationOverride",
-        "label": "Manual override",
-        "description": "Optional. Format: lat,lon (e.g. 37.7749,-122.4194). Leave empty to use phone GPS.",
-        "attributes": {
-          "placeholder": "lat,lon",
-          "limit": 32
-        }
-      }
-    ]
-  },
+   {
+     "type": "section",
+     "items": [
+       {
+         "type": "heading",
+         "defaultValue": "Location"
+       },
+       {
+         "type": "input",
+         "messageKey": "LocationOverride",
+         "label": "Manual override",
+         "description": "Optional. Format: lat,lon (e.g. 37.7749,-122.4194). Leave empty to use phone GPS.",
+         "attributes": {
+           "placeholder": "lat,lon",
+           "limit": 32
+         }
+       }
+     ]
+   },
+   {
+     "type": "section",
+     "items": [
+       {
+         "type": "heading",
+         "defaultValue": "Cards"
+       },
+       {
+         "type": "text",
+         "defaultValue": "Toggle which cards are visible on your watch."
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle0",
+         "label": "6 Hours",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle1",
+         "label": "Week Ahead",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle2",
+         "label": "Rain",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle3",
+         "label": "UV Index",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle4",
+         "label": "Air Quality",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle5",
+         "label": "Sun Cycle",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle6",
+         "label": "Night Sky",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle7",
+         "label": "Golden Hour",
+         "defaultValue": true
+       },
+       {
+         "type": "toggle",
+         "messageKey": "Toggle8",
+         "label": "Click & Go",
+         "defaultValue": true
+       }
+     ]
+   },
   {
     "type": "submit",
     "defaultValue": "Save"

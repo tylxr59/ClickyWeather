@@ -4,15 +4,21 @@
 ClickyWeather is a playful, card-based weather app for Pebble that mixes useful forecast data with personality.  
 It's designed around quick button presses, quick glances, and weather advice that can be practical, sarcastic, and occasionally unreasonably honest.
 
-<div align="center">
-
 ## 🌟 Why this app is different
 ### **Focused weather UX** on Pebble  
 ### **Built only for `gabbro` and `emery`**  
 
-Most Pebble weather apps are bare-bones. ClickyWeather is built around fast card navigation, pull-down refresh, and a personality engine that actually has something to say.
+ClickyWeather is a fork of [TouchyWeather](https://github.com/ClickCalickClick/TouchyWeather) by ClickCalickClick,
+reimagined around button-based navigation. If you prefer navigating with hardware buttons over touch, this one's for you.
 
-</div>
+Most Pebble weather apps are bare-bones. ClickyWeather is built around fast card navigation, pull-down refresh,
+and a personality engine that actually has something to say.
+
+### Changes from TouchyWeather
+
+- **Navigation animations** — Reworked to reflect vertical up/down button navigation instead of horizontal swipe transitions
+- **Radar card removed** — Dropped in favour of keeping the app lean and card-focused
+- **Settings moved** — Relocated from an in-app card to the Pebble companion app for a cleaner card flow
 
 ---
 
@@ -30,7 +36,6 @@ ClickyWeather is a carousel of focused weather cards:
 - **Sun Cycle** — sunrise/sunset timing
 - **Night Sky** — moon phase + illumination
 - **Golden Hour** — blue/golden hour timing blocks
-- **Settings** — enable/disable cards to build your own weather flow
 
 ---
 
@@ -90,25 +95,25 @@ Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use U
     <td><strong>Night Sky</strong><br>Current moon phase name and illumination percentage, rendered with a large moon-phase illustration. Handy for stargazers or anyone curious about tonight's sky.</td>
   </tr>
   <tr>
-    <td><img src="screenshots/fresh/golden_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/golden_gabbro.png" width="144"></td>
-    <td><strong>Golden Hour</strong><br>Blue-hour and golden-hour start times for both morning and evening, colour-coded in blue and gold. Perfect for photographers chasing the best light.</td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/fresh/settings_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/settings_gabbro.png" width="144"></td>
-    <td><strong>Settings — Manage Cards</strong><br>Toggle any card on or off to build your ideal weather deck. Main and Click &amp; Go are always enabled; everything else is optional. UP/DOWN to move the cursor, SELECT to toggle.</td>
-  </tr>
-</table>
+     <td><img src="screenshots/fresh/golden_emery.png" width="144"></td>
+     <td><img src="screenshots/fresh/golden_gabbro.png" width="144"></td>
+     <td><strong>Golden Hour</strong><br>Blue-hour and golden-hour start times for both morning and evening, colour-coded in blue and gold. Perfect for photographers chasing the best light.</td>
+   </tr>
+ </table>
 
 ---
 
-## Settings Card: Your Deck, Your Rules
+## Customizing Your Cards
 
-ClickyWeather includes an in-app **Manage Cards** screen where you can enable/disable cards anytime.  
-`MAIN` and `CLICK & GO` stay locked on (always available), while other cards can be toggled on/off.
+ClickyWeather lets you customize which cards appear on your watch through the **phone app settings**.
 
-This means you can run ultra-minimal (just core weather) or full nerd mode (everything enabled).
+Open the phone app's configuration page and navigate to the **Cards** section. Toggle any of the 9 optional cards on or off to build your ideal weather deck:
+
+- **6 Hours**, **Week Ahead**, **Precipitation**, **UV Index**, **Air Quality**, **Sun Cycle**, **Night Sky**, **Golden Hour**, **Click & Go**
+
+Your choices sync to the watch immediately. This means you can run ultra-minimal (just core weather) or full nerd mode (everything enabled).
+
+**Note:** The **Main** card is always enabled and cannot be disabled—it's your anchor weather view.
 
 ---
 
@@ -132,9 +137,7 @@ It's meant to feel like your weather app has opinions.
 
 - **UP/DOWN**: previous/next card
 - **Pull down**: manual weather refresh
-- **UP/DOWN (on Settings card)**: move settings cursor
-- **SELECT (Settings)**: toggle highlighted card on/off
-- **SELECT (other cards)**: toggle light/dark theme
+- **SELECT**: toggle light/dark theme
 
 ---
 

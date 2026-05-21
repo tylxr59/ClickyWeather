@@ -459,7 +459,21 @@ Pebble.addEventListener('webviewclosed', function(e) {
   } else {
     localStorage.removeItem('locationOverride');
   }
+  
+  // Handle card toggle settings and build EnabledMask.
+  // Each bit in EnabledMask represents a card's enabled state (bit 0 = Toggle0, etc).
+  var enabledMask = 0;
+  for (var i = 0; i < 9; i++) {
+    var key = 'Toggle' + i;
+    if (dict[key] !== undefined && dict[key].value) {
+      enabledMask |= (1 << i);
+    }
+    // Store in localStorage for persistence and reference
+    localStorage.setItem('toggle' + i, dict[key] && dict[key].value ? '1' : '0');
+  }
+  
   var msg = clay.getSettings(e.response);
+  msg.EnabledMask = enabledMask;
   Pebble.sendAppMessage(msg, function() {
     locateAndFetch();
   }, function() {

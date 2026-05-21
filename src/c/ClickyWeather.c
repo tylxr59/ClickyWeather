@@ -1,5 +1,4 @@
 #include <pebble.h>
-#include <string.h>
 #include "theme.h"
 #include "nav.h"
 #include "weather_data.h"
@@ -76,57 +75,25 @@ static void touch_handler(const TouchEvent *event, void *context) {
 
 static void prv_select_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
-  // Context-aware short-press:
-  //   Settings → toggle the highlighted row
-  //   Elsewhere → toggle Light/Dark theme
-  if (strcmp(nav_current_name(), "Settings") == 0) {
-    int cur = settings_cursor();
-    ToggleId tid = settings_visual_id(cur);
-    bool now = !settings_get_enabled(tid);
-    settings_set_enabled(tid, now);
-    nav_set_enabled(s_toggle_to_card_idx[tid], now);
-    nav_redraw();
-    return;
-  }
+  // Short-press SELECT to toggle Light/Dark theme.
   theme_set(theme_get() == THEME_LIGHT ? THEME_DARK : THEME_LIGHT);
   nav_redraw();
 }
 
 static void prv_select_long(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
-  // Long-press SELECT is always theme toggle, even on Settings, so
-  // the user has a uniform shortcut across the whole app.
+  // Long-press SELECT toggles theme.
   theme_set(theme_get() == THEME_LIGHT ? THEME_DARK : THEME_LIGHT);
   nav_redraw();
 }
 
 static void prv_up_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
-  if (strcmp(nav_current_name(), "Settings") == 0) {
-    if (settings_cursor() == 0) {
-      // Already at top — escape Settings upward to the previous card.
-      nav_prev();
-      return;
-    }
-    settings_cursor_retreat();
-    nav_redraw();
-    return;
-  }
   nav_prev();
 }
 
 static void prv_down_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
-  if (strcmp(nav_current_name(), "Settings") == 0) {
-    if (settings_cursor() == SETTINGS_TOGGLEABLE_COUNT - 1) {
-      // Already at bottom — escape Settings downward (wraps to first card).
-      nav_next();
-      return;
-    }
-    settings_cursor_advance();
-    nav_redraw();
-    return;
-  }
   nav_next();
 }
 
@@ -151,7 +118,6 @@ static void prv_window_load(Window *window) {
   nav_register("Sun Cycle", card_sun_cycle_draw);
   nav_register("Night Sky", card_night_sky_draw);
   nav_register("Golden Hour", card_golden_hour_draw);
-  nav_register("Settings", card_settings_draw);
   prv_apply_card_visibility();
   nav_show_index(0);
 

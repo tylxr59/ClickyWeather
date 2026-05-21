@@ -1,6 +1,7 @@
 #include "comm.h"
 #include "weather_data.h"
 #include "theme.h"
+#include "settings.h"
 #include "cards/cards.h"
 #include <string.h>
 #include <stdlib.h>
@@ -34,18 +35,28 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
 
   Tuple *t;
 
-  if ((t = dict_find(iter, MESSAGE_KEY_Theme))) {
-    // Clay radiogroup with string values delivers as TUPLE_CSTRING; older
-    // builds / direct AppMessage tests deliver TUPLE_INT. Accept both.
-    int theme_val = 0;
-    if (t->type == TUPLE_CSTRING) {
-      theme_val = atoi(t->value->cstring);
-    } else {
-      theme_val = (int)t->value->int32;
-    }
-    theme_set(theme_val ? THEME_DARK : THEME_LIGHT);
-    if (s_update_cb) s_update_cb();
-  }
+   if ((t = dict_find(iter, MESSAGE_KEY_Theme))) {
+     // Clay radiogroup with string values delivers as TUPLE_CSTRING; older
+     // builds / direct AppMessage tests deliver TUPLE_INT. Accept both.
+     int theme_val = 0;
+     if (t->type == TUPLE_CSTRING) {
+       theme_val = atoi(t->value->cstring);
+     } else {
+       theme_val = (int)t->value->int32;
+     }
+     theme_set(theme_val ? THEME_DARK : THEME_LIGHT);
+     if (s_update_cb) s_update_cb();
+   }
+   if ((t = dict_find(iter, MESSAGE_KEY_EnabledMask))) {
+     // Decode enabled mask and update card visibility. Each bit represents a card's
+     // enabled state (bit 0 = Toggle0/HOURS, bit 1 = Toggle1/WEEK, ..., bit 8 = Toggle8/ADVICE).
+     uint32_t mask = t->value->uint32;
+     for (int i = 0; i < SETTINGS_TOGGLEABLE_COUNT; ++i) {
+       bool enabled = (mask & (1 << i)) != 0;
+       settings_set_enabled((ToggleId)i, enabled);
+     }
+     if (s_update_cb) s_update_cb();
+   }
   if ((t = dict_find(iter, MESSAGE_KEY_Temp))) { d->temp = t->value->int32; got_anything = true; }
   if ((t = dict_find(iter, MESSAGE_KEY_FeelsLike))) { d->feels_like = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_High))) { d->high = t->value->int32; }
