@@ -552,7 +552,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   // Handle card toggle settings and build EnabledMask.
   // Each bit in EnabledMask represents a card's enabled state (bit 0 = Toggle0, etc).
   var enabledMask = 0;
-  for (var i = 0; i < 10; i++) {
+  for (var i = 0; i < 9; i++) {
     var key = 'Toggle' + i;
     if (dict[key] !== undefined && dict[key].value) {
       enabledMask |= (1 << i);

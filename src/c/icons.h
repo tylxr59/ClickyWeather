@@ -30,7 +30,6 @@ void icon_draw_arrow_down(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_sunrise(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_sunset(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_pulse(GContext *ctx, GPoint center, int size, GColor color);
-void icon_draw_tap(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_horizon_sun(GContext *ctx, GPoint center, int size, GColor color);
 
 // Phase 5: clock face (header icon for 4 Hours card).

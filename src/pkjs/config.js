@@ -124,25 +124,19 @@ module.exports = [
          "label": "Night Sky",
          "defaultValue": true
        },
-       {
-         "type": "toggle",
-         "messageKey": "Toggle7",
-         "label": "Golden Hour",
-         "defaultValue": true
-       },
         {
           "type": "toggle",
-          "messageKey": "Toggle8",
-          "label": "Click & Go",
+          "messageKey": "Toggle7",
+          "label": "Golden Hour",
           "defaultValue": true
         },
-        {
-          "type": "toggle",
-          "messageKey": "Toggle9",
-          "label": "Alerts",
-          "defaultValue": true
-        }
-      ]
+         {
+           "type": "toggle",
+           "messageKey": "Toggle8",
+           "label": "Alerts",
+           "defaultValue": true
+         }
+       ]
     },
   {
     "type": "submit",

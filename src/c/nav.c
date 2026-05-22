@@ -201,8 +201,8 @@ void nav_show_index(int idx) {
 
 static int prv_step_skip(int from, int dir) {
   // Step from `from` in direction `dir` (+1 or -1), skipping disabled
-  // cards. Always returns a valid index because at minimum Main and
-  // Click & Go (both permanently enabled) are present.
+  // cards. Always returns a valid index because at minimum Main is
+  // always present.
   int idx = from;
   for (int i = 0; i < s_card_count; ++i) {
     idx += dir;

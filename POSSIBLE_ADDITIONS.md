@@ -13,12 +13,11 @@ This document outlines potential enhancements to ClickyWeather based on availabl
 - Currently: only `wind_speed_10m` (10-minute sustained average)
 - Available: `wind_gusts_10m` in the `current` response
 - Use case: "Sustained 15 mph, gusts to 28 mph" is way more useful than "15 mph"
-- Advice tier: The "WIND" tier currently triggers on sustained speed but claims "gusts strong enough to rearrange your posture" — actual gust data would back this up
 
 **Implementation:**
 - Add `wind_gust` field to `WeatherData` struct
 - Fetch `wind_gusts_10m` in PKJS forecast request
-- Update main card display or advice tier logic to use it
+- Update main card display to use it
 
 ---
 

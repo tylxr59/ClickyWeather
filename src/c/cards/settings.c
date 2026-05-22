@@ -15,8 +15,7 @@
 //   - SELECT short   → toggle the highlighted row (no auto-advance).
 //   - SELECT long    → app-wide theme toggle (handled in ClickyWeather.c).
 //
-// Cursor chevron is drawn in the violet advice accent so it pops
-// against fg labels and matches the Click & Go card's identity color.
+// Cursor chevron is drawn in theme_fg() so it pops against fg labels.
 
 #define LOCKED_COUNT 1
 
@@ -70,7 +69,7 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
   for (int i = 0; i < SETTINGS_TOGGLEABLE_COUNT; ++i) {
     int y = top_y + (LOCKED_COUNT + i) * row_h;
     bool is_cursor = (i == cursor);
-    GColor txt = is_cursor ? theme_accent_advice() : theme_fg();
+    GColor txt = theme_fg();
 
     // Cursor chevron.
     if (is_cursor) {

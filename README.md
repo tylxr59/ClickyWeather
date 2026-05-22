@@ -17,7 +17,7 @@ and a personality engine that actually has something to say.
 ### Changes from TouchyWeather
 
 - **Navigation animations** — Reworked to reflect vertical up/down button navigation instead of horizontal swipe transitions
-- **Radar card removed** — Dropped in favour of keeping the app lean and card-focused
+- **Radar and Touch & Go card removed** — Dropped in favour of keeping the app lean and card-focused
 - **Settings moved** — Relocated from an in-app card to the Pebble companion app for a cleaner card flow
 
 ---
@@ -27,7 +27,6 @@ and a personality engine that actually has something to say.
 ClickyWeather is a carousel of focused weather cards:
 
 - **Main** — current temp, feels-like, high/low, wind, humidity, quick status
-- **Click & Go** — dynamic weather guidance with humor/sarcasm
 - **6 Hours** — next 6-hour outlook
 - **Week Ahead** — 4-day forecast snapshot
 - **Precipitation** — near-term rain probability view
@@ -54,11 +53,6 @@ Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use U
     <td><img src="screenshots/fresh/main_emery.png" width="144"></td>
     <td><img src="screenshots/fresh/main_gabbro.png" width="144"></td>
     <td><strong>Main</strong><br>At-a-glance current conditions: temperature, feels-like, high/low, wind speed &amp; direction, humidity, and a bottom banner showing the next precipitation event.</td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/fresh/advice_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/advice_gabbro.png" width="144"></td>
-    <td><strong>Click &amp; Go</strong><br>The personality engine. Classifies live conditions and delivers a witty or practical one-liner — "Active drizzle. Boots &gt; sneakers." It also echoes the next precipitation banner so you never lose context.</td>
   </tr>
   <tr>
     <td><img src="screenshots/fresh/hours_emery.png" width="144"></td>
@@ -113,29 +107,13 @@ Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use U
 
 ClickyWeather lets you customize which cards appear on your watch through the **phone app settings**.
 
-Open the phone app's configuration page and navigate to the **Cards** section. Toggle any of the 10 optional cards on or off to build your ideal weather deck:
+Open the phone app's configuration page and navigate to the **Cards** section. Toggle any of the 9 optional cards on or off to build your ideal weather deck:
 
-- **6 Hours**, **Week Ahead**, **Precipitation**, **UV Index**, **Air Quality**, **Sun Cycle**, **Night Sky**, **Golden Hour**, **Alerts**, **Click & Go**
+- **6 Hours**, **Week Ahead**, **Precipitation**, **UV Index**, **Air Quality**, **Sun Cycle**, **Night Sky**, **Golden Hour**, **Alerts**
 
 Your choices sync to the watch immediately. This means you can run ultra-minimal (just core weather) or full nerd mode (everything enabled).
 
 **Note:** The **Main** card is always enabled and cannot be disabled—it's your anchor weather view.
-
----
-
-## Click & Go (the personality engine)
-
-Click & Go classifies live conditions into tiers (storm, rain soon, hot, high UV, bad air, pleasant, etc.) and picks a fitting line.
-
-Examples from the app's phrase pools:
-
-- "**Lightning out. Stay in. Don't be a conductor.**"
-- "**Hydrate or wilt.**"
-- "**Hair plans? Cancelled.**"
-- "**Sunscreen isn't optional.**"
-- "**Boring weather. The good kind.**"
-
-It's meant to feel like your weather app has opinions.
 
 ---
 

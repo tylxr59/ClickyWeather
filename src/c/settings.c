@@ -6,10 +6,8 @@
 #define KEY_TOGGLE_BASE      210  // KEY_TOGGLE_BASE + ToggleId
 
 // Visual order of rows in the Settings card. Decoupled from the enum
-// order so Click & Go appears second (after the locked MAIN row) without
-// disrupting the persisted toggle keys (KEY_TOGGLE_BASE + ToggleId).
+// order so the persisted toggle keys (KEY_TOGGLE_BASE + ToggleId) remain stable.
 static const ToggleId s_visual_order[SETTINGS_TOGGLEABLE_COUNT] = {
-  TOGGLE_ADVICE,  // "CLICK & GO" — second row, right after MAIN
   TOGGLE_HOURS,
   TOGGLE_WEEK,
   TOGGLE_PRECIP,
@@ -18,7 +16,7 @@ static const ToggleId s_visual_order[SETTINGS_TOGGLEABLE_COUNT] = {
   TOGGLE_SUN,
   TOGGLE_NIGHT,
   TOGGLE_GOLDEN,
-  TOGGLE_ALERTS,  // before TOGGLE_ADVICE in visual terms but appended last in enum
+  TOGGLE_ALERTS,
 };
 
 ToggleId settings_visual_id(int visual_pos) {
@@ -27,14 +25,14 @@ ToggleId settings_visual_id(int visual_pos) {
 }
 
 static bool s_enabled[SETTINGS_TOGGLEABLE_COUNT] = {
-  true, true, true, true, true, true, true, true, true, true
+  true, true, true, true, true, true, true, true, true
 };
 static int s_cursor = 0;
 
 static const char *s_labels[SETTINGS_TOGGLEABLE_COUNT] = {
   "6 HOURS", "WEEK AHEAD", "RAIN", "UV INDEX",
   "AIR QUAL", "SUN CYCLE", "NIGHT SKY", "GOLDEN HR",
-  "CLICK & GO", "ALERTS",
+  "ALERTS",
 };
 
 void settings_load(void) {

@@ -264,29 +264,6 @@ void icon_draw_pulse(GContext *ctx, GPoint c, int size, GColor color) {
   }
 }
 
-// Fingertip-tap glyph: a filled center dot with two concentric arc
-// "ripple" rings opening upward and to the sides. Used as the
-// identity icon for the Click & Go advice card so it reads
-// distinctly from the pulse icon used by Air Quality.
-void icon_draw_tap(GContext *ctx, GPoint c, int size, GColor color) {
-  graphics_context_set_fill_color(ctx, color);
-  // Filled center dot.
-  int r_dot = size / 6;
-  if (r_dot < 2) r_dot = 2;
-  graphics_fill_circle(ctx, c, r_dot);
-  // Two concentric arcs opening upward (-135 to +135 deg, leaving a
-  // small "shadow" gap at the bottom so it reads as a tap, not a target).
-  int r_inner = size / 3;
-  int r_outer = size / 2;
-  set_stroke(ctx, color, 2);
-  GRect bb_inner = GRect(c.x - r_inner, c.y - r_inner, r_inner * 2, r_inner * 2);
-  GRect bb_outer = GRect(c.x - r_outer, c.y - r_outer, r_outer * 2, r_outer * 2);
-  graphics_draw_arc(ctx, bb_inner, GOvalScaleModeFitCircle,
-                    DEG_TO_TRIGANGLE(-135), DEG_TO_TRIGANGLE(135));
-  graphics_draw_arc(ctx, bb_outer, GOvalScaleModeFitCircle,
-                    DEG_TO_TRIGANGLE(-135), DEG_TO_TRIGANGLE(135));
-}
-
 // Horizon-sun glyph: half-disc above a horizon line with three rays.
 // Reuses the existing helper without the up/down arrow used by
 // sunrise/sunset. Suitable as the title icon for the Sun Cycle card.

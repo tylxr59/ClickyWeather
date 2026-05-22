@@ -54,8 +54,8 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
      if (s_update_cb) s_update_cb();
    }
    if ((t = dict_find(iter, MESSAGE_KEY_EnabledMask))) {
-     // Decode enabled mask and update card visibility. Each bit represents a card's
-     // enabled state (bit 0 = Toggle0/HOURS, bit 1 = Toggle1/WEEK, ..., bit 8 = Toggle8/ADVICE).
+      // Decode enabled mask and update card visibility. Each bit represents a card's
+      // enabled state (bit 0 = Toggle0/HOURS, bit 1 = Toggle1/WEEK, ..., bit 8 = Toggle8/ALERTS).
      uint32_t mask = t->value->uint32;
      for (int i = 0; i < SETTINGS_TOGGLEABLE_COUNT; ++i) {
        bool enabled = (mask & (1 << i)) != 0;

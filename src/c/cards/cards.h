@@ -2,7 +2,6 @@
 #include <pebble.h>
 
 void card_main_draw(GContext *ctx, GRect bounds);
-void card_advice_draw(GContext *ctx, GRect bounds);
 void card_hours_draw(GContext *ctx, GRect bounds);
 void card_week_draw(GContext *ctx, GRect bounds);
 void card_precipitation_draw(GContext *ctx, GRect bounds);

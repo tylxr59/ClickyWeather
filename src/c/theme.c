@@ -52,13 +52,6 @@ GColor theme_accent_blue(void) {
   return GColorVividCerulean;
 }
 
-GColor theme_accent_advice(void) {
-  // Purple (GColorVividViolet) — distinct from orange (sunrise/UV/banner)
-  // and blue (sunset/precip/AQ). Readable on both dark and light backgrounds.
-  // On 1-bit displays Pebble auto-falls back to white.
-  return GColorVividViolet;
-}
-
 GColor theme_indicator_active(void) { return theme_fg(); }
 GColor theme_indicator_inactive(void) { return theme_muted(); }
 

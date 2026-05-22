@@ -16,7 +16,6 @@ GColor theme_muted(void);          // dotted-line / divider gray
 GColor theme_secondary(void);      // legible body text on either bg
 GColor theme_accent_orange(void);  // sunrise / UV / banner
 GColor theme_accent_blue(void);    // sunset / precipitation / AQ
-GColor theme_accent_advice(void);  // click & go advice card identity
 GColor theme_indicator_active(void);
 GColor theme_indicator_inactive(void);
 
