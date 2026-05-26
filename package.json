@@ -116,7 +116,8 @@
        "AlertActive",
       "AlertCategory",
       "WindGust",
-      "PrecipAmount"
+      "PrecipAmount",
+      "FetchError"
     ],
     "resources": {
     "media": [

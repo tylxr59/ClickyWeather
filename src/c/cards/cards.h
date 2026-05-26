@@ -11,4 +11,3 @@ void card_sun_cycle_draw(GContext *ctx, GRect bounds);
 void card_night_sky_draw(GContext *ctx, GRect bounds);
 void card_golden_hour_draw(GContext *ctx, GRect bounds);
 void card_alerts_draw(GContext *ctx, GRect bounds);
-void card_settings_draw(GContext *ctx, GRect bounds);

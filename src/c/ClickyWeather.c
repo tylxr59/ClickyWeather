@@ -30,6 +30,14 @@ static void prv_apply_card_visibility(void) {
     nav_set_enabled(s_toggle_to_card_idx[i],
                     settings_get_enabled((ToggleId)i));
   }
+  if (!nav_is_enabled(nav_current_index())) {
+    nav_show_index(0);
+  }
+}
+
+static void prv_handle_comm_update(void) {
+  prv_apply_card_visibility();
+  nav_redraw();
 }
 
 // Touch is plumbed for emery / gabbro hardware. Requires firmware >= 5.92.
@@ -157,7 +165,7 @@ static void prv_init(void) {
   });
   window_stack_push(s_window, true);
 
-  comm_set_update_callback(nav_redraw);
+  comm_set_update_callback(prv_handle_comm_update);
   anim_init();
 }
 

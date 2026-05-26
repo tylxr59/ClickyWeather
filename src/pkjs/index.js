@@ -72,10 +72,28 @@ function getUseDewPoint() {
   return localStorage.getItem('useDewPoint') === '1';
 }
 
-// Returns true when coordinates are within the contiguous US + Alaska
-// bounding box. NWS alerts are only available for US points.
+// Returns true when coordinates are within NWS-covered US regions.
 function isUS(lat, lon) {
-  return lat >= 24 && lat <= 50 && lon >= -125 && lon <= -66;
+  var conus = lat >= 24 && lat <= 50 && lon >= -125 && lon <= -66;
+  var alaska = lat >= 51 && lat <= 72 && lon >= -170 && lon <= -130;
+  var hawaii = lat >= 18 && lat <= 23 && lon >= -161 && lon <= -154;
+  return conus || alaska || hawaii;
+}
+
+function validCoordinates(lat, lon) {
+  return isFinite(lat) && isFinite(lon) &&
+         lat >= -90 && lat <= 90 &&
+         lon >= -180 && lon <= 180;
+}
+
+function parseCoordinateOverride(value) {
+  if (!value) return null;
+  var parts = value.split(',');
+  if (parts.length !== 2) return null;
+  var lat = parseFloat(parts[0]);
+  var lon = parseFloat(parts[1]);
+  if (!validCoordinates(lat, lon)) return null;
+  return { lat: lat, lon: lon };
 }
 
 // Alert category enum values — must match AlertCategory in weather_data.h.
@@ -273,7 +291,24 @@ function xhr(url, cb) {
   req.send();
 }
 
+function sendFetchError(reason) {
+  console.log('fetch failed: ' + reason);
+  Pebble.sendAppMessage({
+    FetchError: 1,
+    LastUpdated: Math.floor(Date.now() / 1000)
+  }, function() {
+    console.log('fetch error sent');
+  }, function(e) {
+    console.log('fetch error send fail: ' + JSON.stringify(e));
+  });
+}
+
 function fetchWeather(lat, lon) {
+  if (!validCoordinates(lat, lon)) {
+    sendFetchError('invalid coordinates');
+    return;
+  }
+
   var units = getUnits();
   var tempUnit = units === 'metric' ? 'celsius' : 'fahrenheit';
   var windUnit = units === 'metric' ? 'kmh' : 'mph';
@@ -295,7 +330,7 @@ function fetchWeather(lat, lon) {
     '&timezone=auto';
 
   xhr(fc, function(err, data) {
-    if (err) { console.log('forecast err: ' + err.message); return; }
+    if (err) { sendFetchError('forecast ' + err.message); return; }
     xhr(aq, function(_e2, aqd) {
       var msg = {};
       try {
@@ -360,6 +395,7 @@ function fetchWeather(lat, lon) {
         }
         msg.Units = units === 'metric' ? 1 : 0;
         msg.LastUpdated = Math.floor(Date.now() / 1000);
+        msg.FetchError = 0;
 
         // Pollen — European CAMS strategy:
         //   Europe  → use Open-Meteo CAMS fields already in the AQ
@@ -488,7 +524,7 @@ function fetchWeather(lat, lon) {
           );
         }
       } catch (e) {
-        console.log('parse err: ' + e.message);
+        sendFetchError('parse ' + e.message);
         return;
       }
     });
@@ -496,17 +532,18 @@ function fetchWeather(lat, lon) {
 }
 
 function locateAndFetch() {
-  var override = localStorage.getItem('locationOverride');
+  var override = parseCoordinateOverride(localStorage.getItem('locationOverride'));
   if (override) {
-    var parts = override.split(',');
-    if (parts.length === 2) {
-      fetchWeather(parseFloat(parts[0]), parseFloat(parts[1]));
-      return;
-    }
+    fetchWeather(override.lat, override.lon);
+    return;
   }
   navigator.geolocation.getCurrentPosition(
     function(pos) {
-      fetchWeather(pos.coords.latitude, pos.coords.longitude);
+      if (validCoordinates(pos.coords.latitude, pos.coords.longitude)) {
+        fetchWeather(pos.coords.latitude, pos.coords.longitude);
+      } else {
+        sendFetchError('invalid gps coordinates');
+      }
     },
     function(err) {
       console.log('geo err: ' + err.message + ' — using fallback');

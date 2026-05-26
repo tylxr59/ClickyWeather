@@ -92,5 +92,6 @@ void card_night_sky_draw(GContext *ctx, GRect bounds) {
       GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
+                      d->update_failed,
                       anim_get_frame());
 }

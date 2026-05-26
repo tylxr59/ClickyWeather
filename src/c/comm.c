@@ -15,7 +15,8 @@ static CommUpdateCb s_update_cb = NULL;
 // Bumped 102 -> 103 when dew_point/use_dew_point/pollen_level were added.
 // Bumped 103 -> 104 when alert_active/alert_category were added.
 // Bumped 104 -> 105 when wind_gust/precip_amount were added.
-#define PERSIST_KEY_CACHE 105
+// Bumped 105 -> 106 when update_failed was added.
+#define PERSIST_KEY_CACHE 106
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -38,31 +39,42 @@ static void prv_load_cache(void) {
 static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   WeatherData *d = weather_data_get();
   bool got_anything = false;
+  bool fetch_error_seen = false;
+  bool fetch_error_value = false;
 
   Tuple *t;
 
-   if ((t = dict_find(iter, MESSAGE_KEY_Theme))) {
-     // Clay radiogroup with string values delivers as TUPLE_CSTRING; older
-     // builds / direct AppMessage tests deliver TUPLE_INT. Accept both.
-     int theme_val = 0;
-     if (t->type == TUPLE_CSTRING) {
-       theme_val = atoi(t->value->cstring);
-     } else {
-       theme_val = (int)t->value->int32;
-     }
-     theme_set(theme_val ? THEME_DARK : THEME_LIGHT);
-     if (s_update_cb) s_update_cb();
-   }
-   if ((t = dict_find(iter, MESSAGE_KEY_EnabledMask))) {
-      // Decode enabled mask and update card visibility. Each bit represents a card's
-      // enabled state (bit 0 = Toggle0/HOURS, bit 1 = Toggle1/WEEK, ..., bit 8 = Toggle8/ALERTS).
-     uint32_t mask = t->value->uint32;
-     for (int i = 0; i < SETTINGS_TOGGLEABLE_COUNT; ++i) {
-       bool enabled = (mask & (1 << i)) != 0;
-       settings_set_enabled((ToggleId)i, enabled);
-     }
-     if (s_update_cb) s_update_cb();
-   }
+  if ((t = dict_find(iter, MESSAGE_KEY_Theme))) {
+    // Clay radiogroup with string values delivers as TUPLE_CSTRING; older
+    // builds / direct AppMessage tests deliver TUPLE_INT. Accept both.
+    int theme_val = 0;
+    if (t->type == TUPLE_CSTRING) {
+      theme_val = atoi(t->value->cstring);
+    } else {
+      theme_val = (int)t->value->int32;
+    }
+    theme_set(theme_val ? THEME_DARK : THEME_LIGHT);
+    if (s_update_cb) s_update_cb();
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_EnabledMask))) {
+    // Each bit represents a card's enabled state.
+    // bit 0 = Toggle0/HOURS, ..., bit 8 = Toggle8/ALERTS.
+    uint32_t mask = t->value->uint32;
+    for (int i = 0; i < SETTINGS_TOGGLEABLE_COUNT; ++i) {
+      bool enabled = (mask & (1 << i)) != 0;
+      settings_set_enabled((ToggleId)i, enabled);
+    }
+    if (s_update_cb) s_update_cb();
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_FetchError))) {
+    fetch_error_seen = true;
+    fetch_error_value = (t->value->int32 != 0);
+    d->update_failed = fetch_error_value;
+    if (fetch_error_value) {
+      d->last_updated = (uint32_t)time(NULL);
+    }
+    got_anything = true;
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_Temp))) { d->temp = t->value->int32; got_anything = true; }
   if ((t = dict_find(iter, MESSAGE_KEY_FeelsLike))) { d->feels_like = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_High))) { d->high = t->value->int32; }
@@ -221,6 +233,9 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   }
 
   if (got_anything) {
+    if (!fetch_error_seen || !fetch_error_value) {
+      d->update_failed = false;
+    }
     d->valid = true;
     prv_save_cache();
     if (s_update_cb) s_update_cb();

@@ -15,6 +15,7 @@
 typedef enum {
   STATUS_BANNER_RAIN = 0,    // "RAIN IN <m>M" (orange)
   STATUS_BANNER_UPDATED = 1, // "UPDATED <x> AGO" (muted)
+  STATUS_BANNER_FAILED = 2,  // "UPDATE FAILED" (orange)
 } StatusBannerMode;
 
 // Draws either a rain alert or a "last updated" pill at the bottom of
@@ -33,6 +34,7 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
 bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
                          int minutes_to_rain,
                          uint32_t last_updated_secs,
+                         bool update_failed,
                          uint32_t frame);
 
 // Centered uppercase header label. GOTHIC_18_BOLD across all cards.
@@ -49,4 +51,3 @@ void ui_draw_card_header_with_icon(GContext *ctx, GRect bounds,
                                    UIIconDrawFn draw_icon);
 
 void ui_draw_dotted_hline(GContext *ctx, int x1, int x2, int y, GColor color);
-

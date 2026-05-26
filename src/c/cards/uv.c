@@ -56,6 +56,6 @@ void card_uv_draw(GContext *ctx, GRect bounds) {
 
   (void)H;
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
+                      d->update_failed,
                       anim_get_frame());
 }
-

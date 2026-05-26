@@ -28,6 +28,7 @@ void weather_data_init_mock(void) {
   s_data.precip_amount = 81;     // ~0.3in (8.1mm → mm×10=81; renders "0.3IN PRECIP")
   s_data.units = UNITS_IMPERIAL;
   s_data.last_updated = 0;
+  s_data.update_failed = false;
   s_data.valid = true;
 
   // Phase 10A: Next 6 Hours mock (extends the original 4-hour set with

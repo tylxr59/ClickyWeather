@@ -29,10 +29,10 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
                   bounds.origin.y + bounds.size.h - pad_bottom - banner_h,
                   banner_w, banner_h);
 
-  GColor pill_bg = (mode == STATUS_BANNER_RAIN)
+  GColor pill_bg = (mode == STATUS_BANNER_RAIN || mode == STATUS_BANNER_FAILED)
                    ? theme_accent_orange()
                    : theme_muted();
-  GColor txt_color = (mode == STATUS_BANNER_RAIN)
+  GColor txt_color = (mode == STATUS_BANNER_RAIN || mode == STATUS_BANNER_FAILED)
                      ? GColorBlack
                      : theme_fg();
 
@@ -40,7 +40,9 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
   graphics_fill_rect(ctx, r, banner_h / 2, GCornersAll);
 
   char buf[32];
-  if (mode == STATUS_BANNER_RAIN) {
+  if (mode == STATUS_BANNER_FAILED) {
+    snprintf(buf, sizeof(buf), "UPDATE FAILED");
+  } else if (mode == STATUS_BANNER_RAIN) {
     snprintf(buf, sizeof(buf), "RAIN IN %dM", minutes_to_rain);
   } else {
     prv_format_ago(last_updated_secs, buf, sizeof(buf));
@@ -57,10 +59,13 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
 bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
                          int minutes_to_rain,
                          uint32_t last_updated_secs,
+                         bool update_failed,
                          uint32_t frame) {
   bool has_rain = minutes_to_rain >= 0;
   StatusBannerMode mode;
-  if (has_rain) {
+  if (update_failed) {
+    mode = STATUS_BANNER_FAILED;
+  } else if (has_rain) {
     // 100ms frames; 40 frames = 4s. Toggle every 4s.
     mode = ((frame / 40) & 1) ? STATUS_BANNER_UPDATED : STATUS_BANNER_RAIN;
   } else {
@@ -112,4 +117,3 @@ void ui_draw_dotted_hline(GContext *ctx, int x1, int x2, int y, GColor color) {
     graphics_draw_pixel(ctx, GPoint(x + 1, y + 1));
   }
 }
-
