@@ -99,11 +99,11 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   // Humidity / dew point (right column). User can toggle which one
   // appears via the Clay "Show dew point" switch.
   icon_draw_droplet(ctx, GPoint(ox + W*3/4, oy + row_y + 8), 18, theme_accent_blue());
-  char hum_buf[8];
+  char hum_buf[12];
   if (d->use_dew_point) {
-    snprintf(hum_buf, sizeof(hum_buf), "%d°", d->dew_point);
+    snprintf(hum_buf, sizeof(hum_buf), "DEW %d°", d->dew_point);
   } else {
-    snprintf(hum_buf, sizeof(hum_buf), "%d%%", d->humidity);
+    snprintf(hum_buf, sizeof(hum_buf), "HUM %d%%", d->humidity);
   }
   graphics_draw_text(ctx, hum_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
@@ -134,16 +134,9 @@ void card_main_draw(GContext *ctx, GRect bounds) {
                      GTextOverflowModeTrailingEllipsis,
                      GTextAlignmentCenter, NULL);
 
-  // Right column: precip amount. precip_amount is mm×10 from PKJS.
+  // Right column: current-hour rain chance.
   char pa_buf[32];
-  if (d->units == UNITS_IMPERIAL) {
-    // mm×10 → tenths-of-inches: (mm×10 * 10) / 254 = mm×100 / 254
-    int tenths_in = (d->precip_amount * 10) / 254;
-    snprintf(pa_buf, sizeof(pa_buf), "%d.%dIN PRECIP", tenths_in / 10, tenths_in % 10);
-  } else {
-    snprintf(pa_buf, sizeof(pa_buf), "%d.%dMM PRECIP",
-             d->precip_amount / 10, d->precip_amount % 10);
-  }
+  snprintf(pa_buf, sizeof(pa_buf), "%d%% RAIN", d->precip[0]);
   graphics_context_set_text_color(ctx, theme_fg());
   graphics_draw_text(ctx, pa_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
