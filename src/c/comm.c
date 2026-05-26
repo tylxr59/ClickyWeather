@@ -16,7 +16,8 @@ static CommUpdateCb s_update_cb = NULL;
 // Bumped 103 -> 104 when alert_active/alert_category were added.
 // Bumped 104 -> 105 when wind_gust/precip_amount were added.
 // Bumped 105 -> 106 when update_failed was added.
-#define PERSIST_KEY_CACHE 106
+// Bumped 106 -> 107 when refresh_in_progress was added.
+#define PERSIST_KEY_CACHE 107
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -33,7 +34,18 @@ static void prv_load_cache(void) {
     // Fresh alerts will be fetched and sent by PKJS immediately after.
     d->alert_active = false;
     d->alert_category = ALERT_CAT_NONE;
+    d->refresh_in_progress = false;
   }
+}
+
+static void prv_set_refresh_state(bool in_progress, bool failed) {
+  WeatherData *d = weather_data_get();
+  d->refresh_in_progress = in_progress;
+  d->update_failed = failed;
+  if (failed) {
+    d->last_updated = (uint32_t)time(NULL);
+  }
+  if (s_update_cb) s_update_cb();
 }
 
 static void prv_inbox_received(DictionaryIterator *iter, void *context) {
@@ -70,6 +82,7 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     fetch_error_seen = true;
     fetch_error_value = (t->value->int32 != 0);
     d->update_failed = fetch_error_value;
+    d->refresh_in_progress = false;
     if (fetch_error_value) {
       d->last_updated = (uint32_t)time(NULL);
     }
@@ -233,6 +246,7 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   }
 
   if (got_anything) {
+    d->refresh_in_progress = false;
     if (!fetch_error_seen || !fetch_error_value) {
       d->update_failed = false;
     }
@@ -244,15 +258,35 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
 
 static void prv_inbox_dropped(AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage dropped: %d", (int)reason);
+  prv_set_refresh_state(false, true);
+}
+
+static void prv_outbox_sent(DictionaryIterator *iter, void *context) {
+  (void)iter;
+  (void)context;
+}
+
+static void prv_outbox_failed(DictionaryIterator *iter, AppMessageResult reason,
+                              void *context) {
+  (void)iter;
+  (void)context;
+  APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage send failed: %d", (int)reason);
+  prv_set_refresh_state(false, true);
 }
 
 void comm_request_refresh(void) {
   DictionaryIterator *iter;
-  if (app_message_outbox_begin(&iter) != APP_MSG_OK) return;
+  if (app_message_outbox_begin(&iter) != APP_MSG_OK) {
+    prv_set_refresh_state(false, true);
+    return;
+  }
   // Send a sentinel key to trigger PKJS fetch.
   dict_write_uint8(iter, MESSAGE_KEY_LastUpdated, 1);
   dict_write_end(iter);
-  app_message_outbox_send();
+  prv_set_refresh_state(true, false);
+  if (app_message_outbox_send() != APP_MSG_OK) {
+    prv_set_refresh_state(false, true);
+  }
 }
 
 void comm_set_update_callback(CommUpdateCb cb) {
@@ -268,6 +302,8 @@ void comm_init(void) {
   prv_load_cache();
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_inbox_dropped(prv_inbox_dropped);
+  app_message_register_outbox_sent(prv_outbox_sent);
+  app_message_register_outbox_failed(prv_outbox_failed);
   app_message_open(1024, 256);
   // Refresh-on-open: PKJS 'ready' usually fires soon after launch, but in
   // background-relaunch / cached-PKJS scenarios it doesn't. Send our own

@@ -11,7 +11,7 @@ It's designed around quick button presses, quick glances, and weather advice tha
 ClickyWeather is a fork of [TouchyWeather](https://github.com/ClickCalickClick/TouchyWeather) by ClickCalickClick,
 reimagined around button-based navigation. If you prefer navigating with hardware buttons over touch, this one's for you.
 
-Most Pebble weather apps are bare-bones. ClickyWeather is built around fast card navigation, pull-down refresh,
+Most Pebble weather apps are bare-bones. ClickyWeather is built around fast card navigation, button-triggered refresh,
 and a personality engine that actually has something to say.
 
 ### Changes from TouchyWeather
@@ -35,7 +35,7 @@ ClickyWeather is a carousel of focused weather cards:
 - **Sun Cycle** — sunrise/sunset timing
 - **Night Sky** — moon phase + illumination
 - **Golden Hour** — blue/golden hour timing blocks
-- **Alerts** — active weather alerts by severity with color-coded categories
+- **Alerts** — US weather alerts from the National Weather Service, with "NO DATA" outside supported regions
 
 ---
 
@@ -97,7 +97,7 @@ Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use U
   <tr>
      <td><img src="screenshots/fresh/alerts_emery.png" width="144"></td>
      <td><img src="screenshots/fresh/alerts_gabbro.png" width="144"></td>
-     <td><strong>Alerts</strong><br>Weather alerts for your region, color-coded by severity (red for tornadoes, orange for wind/heat, blue for flood, etc.). Shows "ALL CLEAR" when no alerts are active. Displays "NO DATA" if the region isn't covered by an alert source.</td>
+     <td><strong>Alerts</strong><br>US weather alerts from the National Weather Service, color-coded by severity (red for tornadoes, orange for wind/heat, blue for flood, etc.). Shows "ALL CLEAR" when no alerts are active. Displays "NO DATA" outside supported alert regions.</td>
    </tr>
  </table>
 
@@ -120,8 +120,7 @@ Your choices sync to the watch immediately. This means you can run ultra-minimal
 ## Controls
 
 - **UP/DOWN**: previous/next card
-- **Pull down**: manual weather refresh
-- **SELECT**: toggle light/dark theme
+- **SELECT**: refresh weather
 
 ---
 

@@ -471,26 +471,10 @@ function fetchWeather(lat, lon) {
           }
         }
 
-        // Weather alerts — three cases:
-        //   US  → NWS free public API (chained XHR below)
-        //   EU  → synthetic: WMO daily code ≥ 95 = severe thunderstorm
-        //   Else→ ALERT_CAT_UNKNOWN (-1), shown as "NO DATA"
-        if (isEurope(lat, lon)) {
-          var todayCode = (daily.weather_code || [])[0] || 0;
-          if (todayCode >= 95) {
-            msg.AlertActive   = 1;
-            msg.AlertCategory = ALERT_CAT.TORNADO; // closest severe category
-          } else {
-            msg.AlertActive   = 0;
-            msg.AlertCategory = ALERT_CAT.NONE;
-          }
-          // EU path: send immediately (no extra XHR needed).
-          Pebble.sendAppMessage(msg,
-            function() { console.log('weather sent'); },
-            function(e) { console.log('send fail: ' + JSON.stringify(e)); }
-          );
-        } else if (isUS(lat, lon)) {
-          // US path: fetch NWS alerts then send.
+        // Weather alerts:
+        //   US   → NWS free public API (chained XHR below)
+        //   Else → ALERT_CAT_UNKNOWN (-1), shown as "NO DATA"
+        if (isUS(lat, lon)) {
           var nwsUrl = 'https://api.weather.gov/alerts/active?point=' +
                        lat + '%2C' + lon +
                        '&status=actual&message_type=alert';

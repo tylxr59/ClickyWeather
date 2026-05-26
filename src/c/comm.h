@@ -5,7 +5,7 @@
 void comm_init(void);
 void comm_deinit(void);
 
-// Ask PKJS to refresh now (e.g. on theme/units change or manual refresh).
+// Ask PKJS to refresh now (e.g. startup or SELECT).
 void comm_request_refresh(void);
 
 // Called whenever weather_data is updated from inbox (so UI can redraw).

@@ -42,6 +42,8 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
   char buf[32];
   if (mode == STATUS_BANNER_FAILED) {
     snprintf(buf, sizeof(buf), "UPDATE FAILED");
+  } else if (mode == STATUS_BANNER_REFRESHING) {
+    snprintf(buf, sizeof(buf), "UPDATING...");
   } else if (mode == STATUS_BANNER_RAIN) {
     snprintf(buf, sizeof(buf), "RAIN IN %dM", minutes_to_rain);
   } else {
@@ -60,10 +62,13 @@ bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
                          int minutes_to_rain,
                          uint32_t last_updated_secs,
                          bool update_failed,
+                         bool refresh_in_progress,
                          uint32_t frame) {
   bool has_rain = minutes_to_rain >= 0;
   StatusBannerMode mode;
-  if (update_failed) {
+  if (refresh_in_progress) {
+    mode = STATUS_BANNER_REFRESHING;
+  } else if (update_failed) {
     mode = STATUS_BANNER_FAILED;
   } else if (has_rain) {
     // 100ms frames; 40 frames = 4s. Toggle every 4s.

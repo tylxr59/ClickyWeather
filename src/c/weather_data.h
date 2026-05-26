@@ -51,6 +51,7 @@ typedef struct {
   Units units;
   uint32_t last_updated; // unix seconds when last refresh was received
   bool update_failed;    // true when the most recent PKJS refresh failed
+  bool refresh_in_progress; // true while PKJS is fetching fresh weather
   bool valid;          // true once real or mock data populated
 
   // Phase 10A: Next 6 Hours card. Hours offset 1..6 from current hour.

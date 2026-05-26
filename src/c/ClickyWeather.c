@@ -40,59 +40,11 @@ static void prv_handle_comm_update(void) {
   nav_redraw();
 }
 
-// Touch is plumbed for emery / gabbro hardware. Requires firmware >= 5.92.
-// Flip ENABLE_TOUCH to 0 if running against an older simulator that
-// doesn't ship the touch_service API.
-// Currently used only for pull-down-to-refresh; tap navigation is handled
-// by the UP/DOWN/SELECT buttons.
-#define ENABLE_TOUCH 1
-
 static Window *s_window;
-
-#if ENABLE_TOUCH && defined(PBL_TOUCH)
-static bool s_tracking = false;
-static int16_t s_start_x = 0;
-static int16_t s_start_y = 0;
-
-static void touch_handler(const TouchEvent *event, void *context) {
-  switch (event->type) {
-    case TouchEvent_Touchdown:
-      s_tracking = true;
-      s_start_x = event->x;
-      s_start_y = event->y;
-      break;
-    case TouchEvent_Liftoff: {
-      if (!s_tracking) break;
-      int16_t dx = event->x - s_start_x;
-      int16_t dy = event->y - s_start_y;
-      int16_t adx = dx < 0 ? -dx : dx;
-      int16_t ady = dy < 0 ? -dy : dy;
-      const int16_t PULLDOWN_THRESHOLD = 60;
-      if (dy > PULLDOWN_THRESHOLD && ady > adx) {
-        // Pull-down = manual refresh.
-        comm_request_refresh();
-      }
-      s_tracking = false;
-      break;
-    }
-    default:
-      break;
-  }
-}
-#endif
 
 static void prv_select_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
-  // Short-press SELECT to toggle Light/Dark theme.
-  theme_set(theme_get() == THEME_LIGHT ? THEME_DARK : THEME_LIGHT);
-  nav_redraw();
-}
-
-static void prv_select_long(ClickRecognizerRef r, void *ctx) {
-  (void)r; (void)ctx;
-  // Long-press SELECT toggles theme.
-  theme_set(theme_get() == THEME_LIGHT ? THEME_DARK : THEME_LIGHT);
-  nav_redraw();
+  comm_request_refresh();
 }
 
 static void prv_up_click(ClickRecognizerRef r, void *ctx) {
@@ -107,7 +59,6 @@ static void prv_down_click(ClickRecognizerRef r, void *ctx) {
 
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click);
-  window_long_click_subscribe(BUTTON_ID_SELECT, 600, prv_select_long, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click);
 }
@@ -129,17 +80,9 @@ static void prv_window_load(Window *window) {
   prv_apply_card_visibility();
   nav_show_index(0);
 
-#if ENABLE_TOUCH && defined(PBL_TOUCH)
-  if (touch_service_is_enabled()) {
-    touch_service_subscribe(touch_handler, NULL);
-  }
-#endif
 }
 
 static void prv_window_unload(Window *window) {
-#if ENABLE_TOUCH && defined(PBL_TOUCH)
-  touch_service_unsubscribe();
-#endif
   nav_deinit();
 }
 

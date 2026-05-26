@@ -154,5 +154,6 @@ void card_week_draw(GContext *ctx, GRect bounds) {
 
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
                       d->update_failed,
+                      d->refresh_in_progress,
                       anim_get_frame());
 }
