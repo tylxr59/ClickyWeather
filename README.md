@@ -1,4 +1,4 @@
-# ClickyWeather ⌚🌦️  
+# ClickyWeather
 **Weather, but with attitude. Built for button-first Pebbles.**
 
 ClickyWeather is a playful, card-based weather app for Pebble that mixes useful forecast data with personality.  
@@ -41,65 +41,28 @@ ClickyWeather is a carousel of focused weather cards:
 
 ## Screenshots
 
-Each card is shown on both **emery** (rectangular) and **gabbro** (round). Use UP/DOWN to move between cards.
+Current checked-in screenshots are for **emery**. Use UP/DOWN to move between cards.
 
 <table>
   <tr>
-    <th>emery</th>
-    <th>gabbro</th>
-    <th>Description</th>
+    <th>Main</th>
+    <th>6 Hours</th>
+    <th>Week Ahead</th>
   </tr>
   <tr>
-    <td><img src="screenshots/fresh/main_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/main_gabbro.png" width="144"></td>
-    <td><strong>Main</strong><br>At-a-glance current conditions: temperature, feels-like, high/low, wind speed &amp; direction, humidity, and a bottom banner showing the next precipitation event.</td>
+    <td><img src="screenshots/emery%20-%20main.png" width="144"></td>
+    <td><img src="screenshots/emery%20-%206%20hour.png" width="144"></td>
+    <td><img src="screenshots/emery%20-%20week%20ahead.png" width="144"></td>
   </tr>
   <tr>
-    <td><img src="screenshots/fresh/hours_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/hours_gabbro.png" width="144"></td>
-    <td><strong>6 Hours</strong><br>Hour-by-hour outlook for the next six hours: time, weather icon, temperature, and precipitation probability — useful for planning the next few hours of your day.</td>
+    <th>Precipitation</th>
+    <th>Alerts</th>
   </tr>
   <tr>
-    <td><img src="screenshots/fresh/week_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/week_gabbro.png" width="144"></td>
-    <td><strong>Week Ahead</strong><br>Four-day forecast snapshot showing day name, condition icon, high/low temperatures, and rain probability for each day.</td>
+    <td><img src="screenshots/emery%20-%20precipitation.png" width="144"></td>
+    <td><img src="screenshots/emery%20-%20weather%20alerts.png" width="144"></td>
   </tr>
-  <tr>
-    <td><img src="screenshots/fresh/precip_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/precip_gabbro.png" width="144"></td>
-    <td><strong>Precipitation</strong><br>Bar chart of near-term rain probability across the next several hours (Now → +4h), giving a visual sense of how quickly rain is arriving or clearing.</td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/fresh/uv_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/uv_gabbro.png" width="144"></td>
-    <td><strong>UV Index</strong><br>Gauge-style dial showing the current UV index value and risk label (Low / Moderate / High / etc.). Helps you decide whether sunscreen is optional or mandatory.</td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/fresh/aq_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/aq_gabbro.png" width="144"></td>
-    <td><strong>Air Quality</strong><br>Gauge-style AQI reading with a descriptive label (Good / Moderate / Unhealthy / etc.). Useful for runners and anyone sensitive to air pollution.</td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/fresh/sun_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/sun_gabbro.png" width="144"></td>
-    <td><strong>Sun Cycle</strong><br>Sunrise and sunset times for your location, displayed with distinct up/down icons so you can plan outdoor activities around available daylight.</td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/fresh/night_emery.png" width="144"></td>
-    <td><img src="screenshots/fresh/night_gabbro.png" width="144"></td>
-    <td><strong>Night Sky</strong><br>Current moon phase name and illumination percentage, rendered with a large moon-phase illustration. Handy for stargazers or anyone curious about tonight's sky.</td>
-  </tr>
-  <tr>
-     <td><img src="screenshots/fresh/golden_emery.png" width="144"></td>
-     <td><img src="screenshots/fresh/golden_gabbro.png" width="144"></td>
-     <td><strong>Golden Hour</strong><br>Blue-hour and golden-hour start times for both morning and evening, colour-coded in blue and gold. Perfect for photographers chasing the best light.</td>
-   </tr>
-  <tr>
-     <td><img src="screenshots/fresh/alerts_emery.png" width="144"></td>
-     <td><img src="screenshots/fresh/alerts_gabbro.png" width="144"></td>
-     <td><strong>Alerts</strong><br>US weather alerts from the National Weather Service, color-coded by severity (red for tornadoes, orange for wind/heat, blue for flood, etc.). Shows "ALL CLEAR" when no alerts are active. Displays "NO DATA" outside supported alert regions.</td>
-   </tr>
- </table>
+</table>
 
 ---
 

@@ -128,13 +128,13 @@ function nwsEventToCategory(event) {
 
 // Returns true when coordinates are within continental Europe + UK +
 // Scandinavia. Open-Meteo CAMS pollen data is reliable inside this box;
-// outside it we fall back to the Google Pollen proxy.
+// outside it the watch currently hides pollen data.
 function isEurope(lat, lon) {
   return lat >= 35 && lat <= 72 && lon >= -25 && lon <= 45;
 }
 
 // Convert Open-Meteo pollen values (grains/m³) to the 0-5 UPI-style
-// scale used by the Google Pollen API, using European Aeroallergen
+// scale historically used by the pollen badge, using European Aeroallergen
 // Network (EAN) category thresholds per pollen type. Returns -1 when
 // all inputs are null (region not covered by CAMS).
 //
@@ -325,7 +325,7 @@ function fetchWeather(lat, lon) {
   var aq = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
     '?latitude=' + lat + '&longitude=' + lon +
     // Always request pollen fields. CAMS covers Europe; outside that
-    // region the fields return null and we fall back to Google.
+    // region the fields return null and pollen is hidden on the watch.
     '&current=us_aqi,grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen' +
     '&timezone=auto';
 
@@ -398,9 +398,9 @@ function fetchWeather(lat, lon) {
         msg.FetchError = 0;
 
         // Pollen — European CAMS strategy:
-        //   Europe  → use Open-Meteo CAMS fields already in the AQ
-        //             response (free, no quota, zero extra requests).
-        //   Elsewhere → PollenLevel is not set (watch shows no pollen data).
+        //   Europe   -> use Open-Meteo CAMS fields already in the AQ
+        //               response (free, no quota, zero extra requests).
+        //   Elsewhere -> PollenLevel is not set (watch shows no pollen data).
         // Phase 10A: Next 6 Hours (offsets +1h..+6h from current hour).
         var temps = hourly.temperature_2m || [];
         var codes = hourly.weather_code || [];
@@ -458,8 +458,8 @@ function fetchWeather(lat, lon) {
         msg.GoldPm = gh.GoldPm;
         msg.BluePm = gh.BluePm;
 
-        // Attempt Open-Meteo pollen (Europe only). If successful, skip
-        // the Google proxy call entirely for this request.
+        // Attempt Open-Meteo pollen for Europe. Outside CAMS coverage,
+        // PollenLevel is omitted and the watch hides the pollen badge.
         if (isEurope(lat, lon) && aqd && aqd.current) {
           var aqc = aqd.current;
           var euUpi = pollenGrainsToUpi(

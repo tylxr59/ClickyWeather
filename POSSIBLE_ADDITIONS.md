@@ -105,16 +105,16 @@ This document outlines potential enhancements to ClickyWeather based on availabl
 ## Moderate Effort (Requires New Data Source)
 
 ### 7. 🌍 Pollen Outside Europe
-**Status:** Partially implemented (code exists but is never called)  
+**Status:** Not implemented
 **Impact:** Medium–High (critical for allergy sufferers in pollen season)  
 **Details:**
 - Currently: Europe only (lat 35–72°N, lon 25°W–45°E) via Open-Meteo CAMS
 - Gap: North America, Asia, Australia, Southern Hemisphere get no pollen data
-- Note: `proxy/api/pollen.js` exists from TouchyWeather fork but is disabled
+- Note: The old unused pollen proxy was removed during repo cleanup
 - Available: Google Pollen API (no auth required for public endpoints; requires reverse proxy for CORS)
 
 **Implementation:**
-- Re-enable the Google Pollen proxy (or refactor PKJS to call it directly)
+- Add a Google Pollen proxy or refactor PKJS to call another supported source
 - Extend `isEurope()` check to fall back to Google Pollen for non-CAMS regions
 - Maintain backwards-compatible pollen level (-1 = unknown, 0–5 = UPI scale)
 
@@ -165,7 +165,7 @@ This document outlines potential enhancements to ClickyWeather based on availabl
 - Currently: Removed from TouchyWeather fork ("Radar card removed")
 - Gap: No visual rain forecast; just icons and text
 - Blocker: Pebble's framebuffer is ~96KB; a single radar tile is ≤50KB, but animated sequences or multiple tiles blow the budget
-- Note: The proxy has a `proxy/api/radar.js` stub but it's unused
+- Note: The old unused radar proxy was removed during repo cleanup
 
 **Implementation:** (Low priority)
 - Static radar tile as an optional card (one-time fetch, not animated)
@@ -201,7 +201,7 @@ This document outlines potential enhancements to ClickyWeather based on availabl
 | Visibility | ⭐ | None | 🟢 Low | Niche use case |
 | Hourly/weekly wind | ⭐ | None | 🟡 Medium | Adds 12–24h planning detail |
 | Extended hourly (12–24h) | ⭐⭐ | None | 🟡 Medium | UI challenge, not data |
-| Pollen (non-EU) | ⭐⭐ | 1 extra call (cached) | 🟡 Medium | Code stub exists; proxy needed |
+| Pollen (non-EU) | ⭐⭐ | 1 extra call (cached) | 🟡 Medium | Proxy or alternate source needed |
 | Severe alerts | ⭐⭐⭐ | Multiple calls | 🔴 High | Public safety; needs NWS/MeteoAlarm |
 | Daily precip amount | ⭐ | None | 🟡 Medium | Already available |
 | Radar tiles | ⭐⭐ | Tile fetch | 🟢 Low | Memory-tight; marginal value |

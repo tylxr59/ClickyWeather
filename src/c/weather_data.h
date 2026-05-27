@@ -92,8 +92,8 @@ typedef struct {
   char    gold_pm[10];
   char    blue_pm[10];
 
-  // Pollen severity 0..5 (Google Pollen API UPI scale), max of
-  // grass/tree/weed indexes. -1 means "unknown / not covered" — the
+  // Pollen severity 0..5, max of grass/tree/weed indexes.
+  // -1 means "unknown / not covered" — the
   // air quality card should skip the pollen badge in that case.
   int pollen_level;
 

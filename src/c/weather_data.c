@@ -77,7 +77,7 @@ void weather_data_init_mock(void) {
   strncpy(s_data.gold_pm, "7:32 PM", sizeof(s_data.gold_pm));
   strncpy(s_data.blue_pm, "8:18 PM", sizeof(s_data.blue_pm));
 
-  // Pollen unknown until PKJS proxy responds; -1 hides the badge.
+  // Pollen unknown until PKJS sends CAMS data; -1 hides the badge.
   s_data.pollen_level = -1;
 
   // Alerts mock: no active alerts by default. PKJS will send real alert data.

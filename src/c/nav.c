@@ -9,10 +9,10 @@ static int s_current = 0;
 static Layer *s_card_layer = NULL;
 static Layer *s_indicator_layer = NULL;
 
-// Phase 10F: slide transition state.
+// Card transition state.
 //
-// When the user navigates between cards we run a 200ms horizontal
-// push slide. We DON'T spin up a new AppTimer for each transition;
+// When the user navigates between cards we run a 200ms vertical push
+// slide. We DON'T spin up a new AppTimer for each transition;
 // instead nav_tick_transition() is called from the existing 100ms
 // anim ticker, plus we register a short-lived 30ms AppTimer for the
 // duration of the slide so the motion stays smooth without bumping

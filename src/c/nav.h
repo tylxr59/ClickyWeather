@@ -35,7 +35,6 @@ int  nav_active_enabled_index(void);
 // indicator inside a custom layout — but by default nav layers it on top.
 void nav_draw_page_indicator(GContext *ctx, GRect bounds, int active_index, int total);
 
-// Phase 10F: horizontal push slide transition. Returns true if a
-// transition is currently animating (callers can use this to drop
-// rapid input). nav_next/nav_prev internally route through this.
+// Returns true if a transition is currently animating. Callers can use
+// this to drop rapid input; nav_next/nav_prev internally route through it.
 bool nav_is_transitioning(void);

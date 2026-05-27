@@ -1,6 +1,6 @@
 #include "settings.h"
 
-// Persistence keys. Avoid collisions with comm.c PERSIST_KEY_CACHE=106.
+// Persistence keys. Avoid collisions with comm.c PERSIST_KEY_CACHE.
 #define KEY_TOGGLE_BASE      210  // KEY_TOGGLE_BASE + ToggleId
 
 static bool s_enabled[SETTINGS_TOGGLEABLE_COUNT] = {

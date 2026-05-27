@@ -111,23 +111,23 @@
       "Toggle4",
       "Toggle5",
       "Toggle6",
-       "Toggle7",
-       "Toggle8",
-       "AlertActive",
+      "Toggle7",
+      "Toggle8",
+      "AlertActive",
       "AlertCategory",
       "WindGust",
       "PrecipAmount",
       "FetchError"
     ],
     "resources": {
-    "media": [
-      {
-        "type": "bitmap",
-        "name": "IMAGE_MENU_ICON",
-        "file": "images/menu_icon.png",
-        "menuIcon": true
-      }
-    ]
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "IMAGE_MENU_ICON",
+          "file": "images/menu_icon.png",
+          "menuIcon": true
+        }
+      ]
+    }
   }
-}
 }
