@@ -225,21 +225,21 @@ static const char *const PHRASES_STORM[] = {
   "Storm overhead. Stay inside and off the roof.",
   "Lightning is present. Reschedule outdoor plans.",
   "Sky's throwing a tantrum. Best to wait it out.",
-  "Thunder boss is busy. Grab a book.",
-  "Active storm. The sequel is worse.",
+  "Thunder's active. Good day to stay in with a book.",
+  "Active storm. Best to stay inside and wait it out.",
   "Cancel the picnic. The sky said no.",
   "Electrical storm active. Don't be a conductor.",
-  "Heavy skies ahead. Find a roof immediately.",
-  "Big booms inbound. Small bodies stay inside."
+  "Heavy skies ahead. Find shelter soon.",
+  "Big thunder nearby. Keep everyone inside."
 };
 
 static const char *const PHRASES_RAIN_SOON[] = {
   "Rain incoming. This is your last call for sunshine.",
-  "Sky's about to leak. Move accordingly.",
+  "Rain's about to start. Head for cover soon.",
   "Wet weather inbound. Time to grab the jacket.",
-  "Heads up, clouds are loaded. Beat the rain.",
+  "Heads up, rain is close. Beat it indoors.",
   "Pop-up shower in 15. The pavement will shine.",
-  "Drops are queued. Prepare the hood.",
+  "Rain is on the way. Keep a hood handy.",
   "Window's closing. Move fast.",
   "Sky says hurry. Or get wet, your choice.",
   "Damp incoming. Last dry minutes of the hour."
@@ -247,12 +247,12 @@ static const char *const PHRASES_RAIN_SOON[] = {
 
 static const char *const PHRASES_RAIN_NOW[] = {
   "It is raining. Embrace the wet or escape it.",
-  "Active drizzle. Boots > sneakers.",
-  "Currently wet. Adjust your expectations.",
+  "Active drizzle. Boots beat sneakers today.",
+  "Currently wet outside. Plan for a slower trip.",
   "Sky's washing the world. Dodge it if you can.",
   "Slick streets. Slower steps.",
   "Wet phone risk: high. Pocket it safely.",
-  "It's pouring. Coffee tastes better when it's wet.",
+  "It's pouring. Best to keep warm and stay dry.",
   "Rain mode engaged. Umbrellas are mandatory.",
   "Outside is wet. Inside is perfectly fine."
 };
@@ -264,7 +264,7 @@ static const char *const PHRASES_RAIN_COLD[] = {
   "Wet plus cold today. Extra caution on sidewalks.",
   "Chilly rain mode. Waterproof layers pay off.",
   "Cold rain and wind. Keep hands covered.",
-  "Icy-feel rain. Move slower and watch curbs.",
+  "Cold rain with an icy feel. Watch curbs.",
   "Rain is cold enough to bite. Bundle and hood up.",
   "Cold wet outside. Prioritize grip over speed."
 };
@@ -272,44 +272,44 @@ static const char *const PHRASES_RAIN_COLD[] = {
 static const char *const PHRASES_SNOW[] = {
   "Snow falling. Layer up and walk slow.",
   "Slippery world outside. Mind the curbs.",
-  "Cold and white out. Drive like grandma does.",
+  "Cold and snowy out. Drive slowly and leave room.",
   "Boots, gloves, patience. In that exact order.",
   "Snow stacking up. Boots are not optional.",
   "Slush is the new ice. Step lighter.",
   "Hot drink mandatory. It's a snow day rule.",
   "Sky is quiet, ground is loud. Wear layers.",
-  "It's snowing. Roads strongly disagree with you."
+  "It's snowing. Roads may be slick, so take it slow."
 };
 
 static const char *const PHRASES_HOT[] = {
   "Hydrate or wilt. It is cooking out there.",
   "It is hot. The car will be hotter.",
-  "Heat advisory active. Vibes only inside today.",
+  "Heat advisory active. Better to stay inside today.",
   "Sweat is the new accessory. Hydrate.",
   "Pavement is literally lava. Choose grass.",
   "Stay cool. Literally and figuratively.",
   "Heat wave conditions. Slow is fast today.",
-  "Sun's not playing. Find the shade.",
-  "AC is a love language. Stay indoors."
+  "The sun is intense. Find some shade.",
+  "Air conditioning will earn its keep today. Stay cool."
 };
 
 static const char *const PHRASES_COLD[] = {
   "Toe-numbing cold. Cover your extremities.",
   "Layers are not a suggestion. Bundle up safely.",
   "It's cold. Your nose already knows the truth.",
-  "Cold enough to taste. Hat now, regret later.",
+  "Very cold out. Hat now, thank yourself later.",
   "Winter said prove it. Wear heavy layers.",
   "Bone-cold outside. Hot bath waiting at home.",
   "Wind chill bites. Two pairs of socks is wisdom.",
   "Frost on everything. Plan extra driving time.",
-  "Hands in pockets, head down. Move with intent."
+  "Keep hands warm and take your time outside."
 };
 
 static const char *const PHRASES_WIND[] = {
   "Hold your hat. Wind is in charge today.",
   "Blustery conditions. Tie down loose stuff.",
   "Hair plans? Canceled. Lean into the wind.",
-  "Gusts strong enough to rearrange your posture.",
+  "Strong gusts today. Keep your balance outdoors.",
   "Door-slam day. Hold the handle tightly.",
   "Wind makes mild cold feel completely arctic.",
   "Trash bag flight risk. Secure all outdoor items.",
@@ -319,44 +319,44 @@ static const char *const PHRASES_WIND[] = {
 
 static const char *const PHRASES_HIGH_UV[] = {
   "Sunscreen isn't optional. Bright burn risk today.",
-  "UV's completely peaked. Cover yourself up.",
+  "UV is very high today. Cover up well.",
   "Sun is judging. So is your sensitive skin.",
   "Strong sun today. Strong shade preference required.",
-  "Reapply your SPF. Then reapply it once again.",
+  "Reapply your sunscreen often today.",
   "UV index severe. Burns happen in 15 minutes.",
   "Hat over hood. Wide brim always wins here.",
-  "Shade is a luxury. plan outdoor time around it.",
-  "Sunglasses act as tools. They aren't just vibes."
+  "Shade will be limited. Plan outdoor time carefully.",
+  "Sunglasses help today. They're more than style."
 };
 
 static const char *const PHRASES_BAD_AIR[] = {
-  "Air quality off. Indoor cardio totally wins.",
+  "Poor air today. Indoor exercise is the better call.",
   "Lungs prefer indoors today. Keep windows fully shut.",
   "Air feels thick. Trust the AQI gauge.",
   "Mask up if sensitive. Today's a stay-in day.",
   "Outdoor workout gently postponed. Do not push it.",
-  "Breathe shallow. Or just breathe safely inside.",
-  "Air's having a rough one. Filter check time.",
+  "If air bothers you, spending time indoors helps.",
+  "Air quality is rough today. Check your filter.",
   "Eyes burning is your body's early warning.",
   "Smoke or smog? Yes. Move your plans inside."
 };
 
 static const char *const PHRASES_MUGGY[] = {
-  "Humid soup. Embrace the completely dewy look.",
+  "Very humid today. Expect a sticky walk outside.",
   "Sticky conditions. Shower-after-walking territory.",
   "Air is thick today. Move slow and hydrate.",
   "Humidity says hi. Very, very loudly.",
   "Towel in the bag. Always carry one today.",
-  "Cotton truly lies. You must wear synthetics.",
-  "Frizz is a total vibe. Hair plans canceled.",
+  "Light, breathable clothes will feel better today.",
+  "Humidity is high. Expect hair and clothes to cling.",
   "Tropical conditions. Without the actual beach.",
-  "Dew point over air temp. Welcome to soup."
+  "It feels heavier than the temperature suggests."
 };
 
 static const char *const PHRASES_PLEASANT_DAY[] = {
   "Just nice out. Go safely enjoy something.",
   "Boring weather. This is officially the good kind.",
-  "Goldilocks day. Make sure you fully use it.",
+  "Everything feels nicely balanced today. Enjoy it.",
   "If you head out, conditions are on your side.",
   "All systems fully go. Step boldly outside.",
   "Friendly sky above. Go be friendly right back.",
@@ -369,14 +369,14 @@ static const char *const PHRASES_PLEASANT_DAY[] = {
 // directives that can be wrong late at night.
 static const char *const PHRASES_PLEASANT_NIGHT[] = {
   "Clear and quiet outside. Good night to wind down.",
-  "Calm skies overhead. Evening mode looks good.",
+  "Calm skies overhead. The evening looks settled.",
   "Night is steady and dry. Low drama weather.",
-  "Quiet conditions. Recharge mode is fully valid.",
+  "Quiet conditions. A restful evening fits well.",
   "Stable night weather. Nothing urgent outside.",
   "Skies are calm. A cozy plan wins tonight.",
   "Clear late hours. No weather chaos in sight.",
   "Evening air is settled. Keep plans low-stress.",
-  "Night forecast is calm. Comfort choices win."
+  "Night forecast is calm. Choose what feels comfortable."
 };
 
 // Daytime but cool-safe pleasant set. Encourages layers instead of implying
@@ -399,10 +399,10 @@ static const char *const PHRASES_DATA_STALE[] = {
   "Data is older than ideal. Refresh before planning.",
   "Weather feed may be behind. Quick refresh recommended.",
   "Advisory confidence is reduced. Update for accuracy.",
-  "Conditions may have shifted. Request a new fetch.",
-  "Old weather packet detected. Refresh for latest.",
-  "This read is stale-ish. Pull to sync current data.",
-  "Forecast age is high. Refresh to regain trust."
+  "Conditions may have shifted. Refresh for an update.",
+  "This weather update is old. Refresh for the latest.",
+  "This reading may be stale. Pull to refresh.",
+  "Forecast is getting old. Refresh for confidence."
 };
 
 #define POOL(arr) (arr), (sizeof(arr) / sizeof((arr)[0]))

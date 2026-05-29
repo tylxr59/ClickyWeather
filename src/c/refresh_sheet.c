@@ -35,7 +35,7 @@
 
 static const char *const s_phrases[] = {
   "Consulting the sky...",
-  "Time will tell...",
+  "Waiting on the latest forecast...",
   "Asking the clouds...",
   "Reading the wind...",
   "Checking the horizon...",
@@ -44,7 +44,7 @@ static const char *const s_phrases[] = {
 };
 #define PHRASE_COUNT ((int)(sizeof(s_phrases) / sizeof(s_phrases[0])))
 
-static const char *const FALLBACK_PHRASE = "Couldn't reach the sky...";
+static const char *const FALLBACK_PHRASE = "Couldn't reach the forecast just now...";
 
 // Module state -------------------------------------------------------------
 
