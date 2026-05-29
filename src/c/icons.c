@@ -481,17 +481,46 @@ void icon_draw_moon_small(GContext *ctx, GPoint c, int size, GColor color) {
   graphics_context_set_stroke_width(ctx, 1);
 }
 
+// Integer-sqrt helper for scanline math. r <= ~64 in practice so this
+// is plenty fast and avoids pulling in libm.
+static int prv_isqrt(int v) {
+  if (v <= 0) return 0;
+  int x = v / 2 + 1;
+  for (int i = 0; i < 8; ++i) {
+    x = (x + v / x) / 2;
+  }
+  return x;
+}
+
+// Draws the moon disc with a phase shadow computed from the actual
+// illumination percentage.
+//
+// The terminator (light/shadow boundary) on a sphere viewed from earth
+// is a half-ellipse whose horizontal semi-axis is |1 - 2f|*r where f
+// is the lit fraction. We render scanline-by-scanline:
+//   for each y in [-r, r]:
+//     x_moon = sqrt(r^2 - y^2)         // moon's half-width at this row
+//     x_term = ((100 - 2*illum)/100) * x_moon  // terminator x (signed)
+//   waxing  -> shadow covers [-x_moon, x_term] on this row
+//   waning  -> shadow covers [-x_term, x_moon] on this row (mirrored)
+// This keeps the shadow precisely clipped to the moon disc — no
+// off-disc overflow, no fixed-per-phase fudge factors. The lit
+// fraction matches `illum` exactly.
 void icon_draw_moon_phase(GContext *ctx, GPoint c, int size,
-                          uint8_t phase, GColor moon_color, GColor bg_color) {
+                          uint8_t phase, uint8_t illum,
+                          GColor moon_color, GColor bg_color) {
   int r = size / 2;
+
+  // Body disc.
   graphics_context_set_fill_color(ctx, moon_color);
   graphics_fill_circle(ctx, c, r);
-  if (phase == 4) {
-    // Full moon — done.
+
+  // Full moon — no shadow.
+  if (phase == 4 || illum >= 100) {
     return;
   }
-  if (phase == 0 || phase == 8) {
-    // New moon — entire disc shadowed.
+  // New moon — entire disc shadowed; outline body so it stays visible.
+  if (phase == 0 || phase == 8 || illum == 0) {
     graphics_context_set_fill_color(ctx, bg_color);
     graphics_fill_circle(ctx, c, r);
     graphics_context_set_stroke_color(ctx, moon_color);
@@ -499,25 +528,41 @@ void icon_draw_moon_phase(GContext *ctx, GPoint c, int size,
     graphics_draw_circle(ctx, c, r);
     return;
   }
-  // For other phases, overlay a bg-color shadow disc offset along x.
-  // The shadow disc's intersection with the moon disc forms the dark
-  // portion. For waxing phases (1..3) the shadow shifts left so the
-  // moon's right side stays lit; for waning (5..7) it shifts right.
-  // Magnitude grows further from "full" so quarters cover half the moon
-  // and crescents leave only a thin sliver lit.
-  int dx = 0;
-  switch (phase) {
-    case 1: dx = -r * 3 / 5; break;  // waxing crescent
-    case 2: dx = -r;         break;  // first quarter (half lit right)
-    case 3: dx = -r * 8 / 5; break;  // waxing gibbous (mostly lit)
-    case 5: dx = r * 8 / 5;  break;  // waning gibbous
-    case 6: dx = r;          break;  // last quarter (half lit left)
-    case 7: dx = r * 3 / 5;  break;  // waning crescent
-    default: return;
-  }
+
+  bool waxing = (phase >= 1 && phase <= 3);
+  // Phase 5..7 are waning. If phase is out-of-range, fall back to
+  // waxing so we still render something coherent.
+
+  // Clamp illum into a sensible range for the math below.
+  int f = illum;
+  if (f < 1)   f = 1;
+  if (f > 99)  f = 99;
+
   graphics_context_set_fill_color(ctx, bg_color);
-  graphics_fill_circle(ctx, GPoint(c.x + dx, c.y), r);
-  // Re-stroke moon edge to keep its outline visible.
+  for (int y = -r; y <= r; ++y) {
+    int x_moon = prv_isqrt(r * r - y * y);
+    // Signed terminator offset. Positive when illum < 50 (shadow
+    // covers > half), negative when illum > 50 (shadow is small).
+    int x_term = ((100 - 2 * f) * x_moon) / 100;
+
+    int x_left, x_right;
+    if (waxing) {
+      // Shadow on the left side of the moon, ending at the terminator.
+      x_left  = -x_moon;
+      x_right = x_term;
+    } else {
+      // Mirror for waning: shadow on the right side.
+      x_left  = -x_term;
+      x_right = x_moon;
+    }
+    if (x_right <= x_left) continue;
+    graphics_fill_rect(ctx,
+        GRect(c.x + x_left, c.y + y, x_right - x_left + 1, 1),
+        0, GCornerNone);
+  }
+
+  // Re-stroke moon edge so a clean outline frames the disc on either
+  // theme regardless of how thin the lit sliver is.
   graphics_context_set_stroke_color(ctx, moon_color);
   graphics_context_set_stroke_width(ctx, 2);
   graphics_draw_circle(ctx, c, r);

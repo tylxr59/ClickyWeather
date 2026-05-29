@@ -20,6 +20,31 @@ static GColor aqi_category_color(int aqi) {
   return GColorDarkCandyAppleRed;                   // HAZARDOUS
 }
 
+// Phase 10E.x: AQI → arc sweep mapping.
+//
+// "Healthy/unhealthy halves" expression:
+//   AQI 0–100   → 0–90°   (left half of the arc)
+//   AQI 100–500 → 90–180° (right half, piecewise by EPA band)
+//
+// Anchoring AQI 100 (the Good/Moderate → USG inflection) at the top of
+// the arc makes the gauge legible at a glance: left half = everyday-
+// acceptable, right half = take action. Also extends honest support to
+// AQI 301–500 instead of clipping at 300 like the previous linear
+// formula did.
+static int aqi_to_sweep_deg(int aqi) {
+  if (aqi <= 0) return 0;
+  if (aqi <= 100) return (aqi * 90) / 100;
+  // Upper-half breakpoints: AQI 100→90°, 150→113°, 200→135°, 300→158°, 500→180°
+  static const int bp[]  = {100, 150, 200, 300, 500};
+  static const int deg[] = { 90, 113, 135, 158, 180};
+  for (int i = 1; i < 5; i++) {
+    if (aqi <= bp[i]) {
+      return deg[i-1] + ((aqi - bp[i-1]) * (deg[i] - deg[i-1])) / (bp[i] - bp[i-1]);
+    }
+  }
+  return 180;
+}
+
 void card_air_quality_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
@@ -46,8 +71,8 @@ void card_air_quality_draw(GContext *ctx, GRect bounds) {
                        DEG_TO_TRIGANGLE(-90), DEG_TO_TRIGANGLE(90));
   int aqi_capped = d->aqi;
   if (aqi_capped < 0) aqi_capped = 0;
-  if (aqi_capped > 300) aqi_capped = 300;
-  int sweep_deg = (aqi_capped * 180) / 300;
+  if (aqi_capped > 500) aqi_capped = 500;
+  int sweep_deg = aqi_to_sweep_deg(aqi_capped);
   GColor cat = aqi_category_color(d->aqi);
   graphics_context_set_fill_color(ctx, cat);
   graphics_fill_radial(ctx, arc_box, GOvalScaleModeFitCircle, thickness,

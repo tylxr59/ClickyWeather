@@ -1,6 +1,7 @@
 #include "comm.h"
 #include "weather_data.h"
 #include "theme.h"
+#include "refresh_sheet.h"
 #include "cards/cards.h"
 #include <string.h>
 #include <stdlib.h>
@@ -227,6 +228,9 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     d->valid = true;
     prv_save_cache();
     if (s_update_cb) s_update_cb();
+    // Notify the pull-to-refresh sheet so it can close. Safe in any
+    // state — it's a no-op unless the sheet is currently loading.
+    refresh_sheet_on_data_received();
   }
 }
 

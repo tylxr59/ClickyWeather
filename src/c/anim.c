@@ -1,6 +1,7 @@
 #include "anim.h"
 #include "nav.h"
 #include "weather_data.h"
+#include "refresh_sheet.h"
 #include <string.h>
 
 #define ANIM_PERIOD_MS 100
@@ -24,6 +25,9 @@ static void prv_tick(void *ctx) {
       if ((s_frame % 40) == 0) needs_redraw = true;
     }
   }
+  // Refresh sheet has its own animated indicator; keep ticking while
+  // it's open so the spinner advances on every card.
+  if (refresh_sheet_is_active()) needs_redraw = true;
   if (needs_redraw) {
     nav_redraw();
   }

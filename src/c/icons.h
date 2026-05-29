@@ -41,13 +41,14 @@ void icon_draw_calendar(GContext *ctx, GPoint center, int size, GColor color);
 
 // Phase 7: moon glyph for Night Sky.
 //   icon_draw_moon_small: stylized crescent for header icon (any size).
-//   icon_draw_moon_phase: full moon with phase shadow circle.
-//     phase: 0=NEW, 1=WAX_CRESCENT, 2=FIRST_Q, 3=WAX_GIBBOUS,
-//            4=FULL, 5=WAN_GIBBOUS, 6=LAST_Q, 7=WAN_CRESCENT.
+//   icon_draw_moon_phase: moon disc with a phase shadow whose lit
+//     fraction matches `illum` (0..100). `phase` only selects waxing
+//     (1..3) vs. waning (5..7) side; 0/8 = new, 4 = full.
 //     bg_color is the card's background, used to draw the shadow.
 void icon_draw_moon_small(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_moon_phase(GContext *ctx, GPoint center, int size,
-                          uint8_t phase, GColor moon_color, GColor bg_color);
+                          uint8_t phase, uint8_t illum,
+                          GColor moon_color, GColor bg_color);
 
 // Phase 8: settings gear and lock icon.
 void icon_draw_settings_gear(GContext *ctx, GPoint center, int size, GColor color);

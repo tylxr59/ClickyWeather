@@ -6,6 +6,7 @@
 #include "comm.h"
 #include "anim.h"
 #include "settings.h"
+#include "refresh_sheet.h"
 #include "cards/cards.h"
 
 // Card-registry indices for the toggleable cards. Must match the
@@ -47,28 +48,48 @@ static int16_t s_start_x = 0;
 static int16_t s_start_y = 0;
 
 static void touch_handler(const TouchEvent *event, void *context) {
+  (void)context;
   switch (event->type) {
     case TouchEvent_Touchdown:
       s_tracking = true;
       s_start_x = event->x;
       s_start_y = event->y;
+      // Give the refresh sheet first crack at the gesture. If it claims
+      // it (e.g. sheet is already open), we still record start coords
+      // for completeness but later events get routed to the sheet first.
+      refresh_sheet_on_touchdown(event->x, event->y);
+      break;
+    case TouchEvent_PositionUpdate:
+      if (!s_tracking) break;
+      // Refresh sheet handles pull-down tracking. If it consumes the
+      // event we stop here; otherwise nothing else needs to react to
+      // mid-gesture moves today.
+      refresh_sheet_on_move(event->x, event->y);
       break;
     case TouchEvent_Liftoff: {
       if (!s_tracking) break;
+      // Sheet first — if it consumes the liftoff (committed pull or
+      // tracking-cancel), skip the swipe/tap fallthrough entirely.
+      if (refresh_sheet_on_liftoff(event->x, event->y)) {
+        s_tracking = false;
+        break;
+      }
+      // Don't act on buttons/swipes/taps while the sheet is animating
+      // or loading.
+      if (refresh_sheet_is_active()) {
+        s_tracking = false;
+        break;
+      }
       int16_t dx = event->x - s_start_x;
       int16_t dy = event->y - s_start_y;
       int16_t adx = dx < 0 ? -dx : dx;
       int16_t ady = dy < 0 ? -dy : dy;
       const int16_t HSWIPE_THRESHOLD = 30;
-      const int16_t PULLDOWN_THRESHOLD = 60;
       const int16_t TAP_THRESHOLD = 15;
       if (adx > HSWIPE_THRESHOLD && adx > ady) {
         // Horizontal swipe = card nav.
         if (dx < 0) nav_next();
         else        nav_prev();
-      } else if (dy > PULLDOWN_THRESHOLD && ady > adx) {
-        // Pull-down = manual refresh.
-        comm_request_refresh();
       } else if (adx < TAP_THRESHOLD && ady < TAP_THRESHOLD) {
         // Tap (small movement). On the Settings card, advance the
         // row cursor. Elsewhere we ignore taps for now.
@@ -77,6 +98,7 @@ static void touch_handler(const TouchEvent *event, void *context) {
           nav_redraw();
         }
       }
+      // Note: pull-down-to-refresh is now owned by refresh_sheet.
       s_tracking = false;
       break;
     }
@@ -88,6 +110,7 @@ static void touch_handler(const TouchEvent *event, void *context) {
 
 static void prv_select_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  if (refresh_sheet_is_active()) return;
   // Context-aware short-press:
   //   Radar    → retry fetch (bypasses 60s cooldown)
   //   Settings → toggle the highlighted row
@@ -112,6 +135,7 @@ static void prv_select_click(ClickRecognizerRef r, void *ctx) {
 
 static void prv_select_long(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  if (refresh_sheet_is_active()) return;
   // Long-press SELECT is always theme toggle, even on Settings, so
   // the user has a uniform shortcut across the whole app.
   theme_set(theme_get() == THEME_LIGHT ? THEME_DARK : THEME_LIGHT);
@@ -120,11 +144,13 @@ static void prv_select_long(ClickRecognizerRef r, void *ctx) {
 
 static void prv_up_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  if (refresh_sheet_is_active()) return;
   nav_prev();
 }
 
 static void prv_down_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  if (refresh_sheet_is_active()) return;
   nav_next();
 }
 
@@ -154,6 +180,10 @@ static void prv_window_load(Window *window) {
   prv_apply_card_visibility();
   nav_show_index(0);
 
+  // Pull-to-refresh sheet sits above the nav layers so it can paint
+  // over any card content while open.
+  refresh_sheet_init(window);
+
 #if ENABLE_TOUCH && defined(PBL_TOUCH)
   if (touch_service_is_enabled()) {
     touch_service_subscribe(touch_handler, NULL);
@@ -162,9 +192,11 @@ static void prv_window_load(Window *window) {
 }
 
 static void prv_window_unload(Window *window) {
+  (void)window;
 #if ENABLE_TOUCH && defined(PBL_TOUCH)
   touch_service_unsubscribe();
 #endif
+  refresh_sheet_deinit();
   nav_deinit();
 }
 
