@@ -194,9 +194,8 @@ pebble screenshot --emulator emery --vnc --no-open screenshot.png
 
 ## License
 
-==============================================================================
+
 TERMS OF USE: CREATIVE COMMONS ATTRIBUTION-NONCOMMERCIAL 4.0 WITH ADDENDUM
-==============================================================================
 
 This software is licensed under the Creative Commons Attribution-NonCommercial 
 4.0 International License (CC BY-NC 4.0), supplemented by the specific platform 
