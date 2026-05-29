@@ -236,6 +236,6 @@ Holder places the following binding restriction on public distribution:
    bug fixes are submitted as contributions (Pull Requests) to the upstream 
    repository for integration into the primary application listing.
 
-==============================================================================
+
 Copyright (c) 2026 ClickCalickClick. All rights reserved.
-==============================================================================
+
