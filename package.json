@@ -43,6 +43,7 @@
       "Precip3",
       "Precip4",
       "UV",
+      "UVMax",
       "AQI",
       "Sunrise",
       "Sunset",

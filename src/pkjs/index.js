@@ -252,7 +252,7 @@ function fetchWeather(lat, lon) {
 
   var fc = 'https://api.open-meteo.com/v1/forecast' +
     '?latitude=' + lat + '&longitude=' + lon +
-    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m' +
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,uv_index' +
     '&hourly=temperature_2m,weather_code,precipitation_probability' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
     '&temperature_unit=' + tempUnit +
@@ -291,8 +291,20 @@ function fetchWeather(lat, lon) {
           msg.Sunrise = fmtTime12(daily.sunrise[0]);
           msg.Sunset = fmtTime12(daily.sunset[0]);
         }
-        if (daily.uv_index_max && daily.uv_index_max.length) {
-          msg.UV = Math.round(daily.uv_index_max[0]);
+        // UV semantics:
+        //   msg.UV    — current UV (live gauge value)
+        //   msg.UVMax — today's forecast peak (subtitle "PEAK n")
+        // Fall back to daily peak if `current.uv_index` is missing on
+        // older API responses, so we never regress to undefined.
+        var dailyMax = (daily.uv_index_max && daily.uv_index_max.length)
+                       ? daily.uv_index_max[0] : null;
+        if (typeof cur.uv_index === 'number') {
+          msg.UV = Math.round(cur.uv_index);
+        } else if (dailyMax !== null) {
+          msg.UV = Math.round(dailyMax);
+        }
+        if (dailyMax !== null) {
+          msg.UVMax = Math.round(dailyMax);
         }
         var p = hourly.precipitation_probability || [];
         var times = hourly.time || [];
@@ -448,15 +460,16 @@ function locateAndFetch() {
 // ----------------------------------------------------------------------
 
 var RADAR_CHUNK_SIZE = 1500;
-// Set this to your deployed Vercel proxy URL.
-// If you configured RADAR_SECRET on the server, append ?key=<your-secret> here.
-// Example: 'https://your-proxy.vercel.app/api/radar?key=abc123'
-// NOTE: remove the ?key=... before committing to the repo.
-var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar?key=REDACTED';
+// Shared secret for the Vercel proxy (RADAR_SECRET env var). Kept URL-safe
+// (no '#', '&', '@', etc.) so it can be embedded directly in a query string
+// without encoding gymnastics. Prior values containing '#' were silently
+// truncated by the HTTP client at the fragment marker, causing 401s.
+// NOTE: remove the ?key=... before committing to a public repo.
+var RADAR_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/radar?key=tw-radar-prod-Xk7nQ2v9LpR4Mj8a';
 
 // Pollen proxy shares the same Vercel project + RADAR_SECRET auth key
 // as the radar endpoint, so the URL differs only in the /api path.
-var POLLEN_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/pollen?key=REDACTED';
+var POLLEN_PROXY_URL = 'https://touchyweather-radar-proxy.vercel.app/api/pollen?key=tw-radar-prod-Xk7nQ2v9LpR4Mj8a';
 
 // Pollen is throttled to one proxy fetch per 6 hours per device.
 // Between fetches the last known level is re-sent from localStorage so

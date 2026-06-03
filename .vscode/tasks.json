@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and install on emery",
+			"type": "shell",
+			"command": "pebble build && pebble install --emulator emery",
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

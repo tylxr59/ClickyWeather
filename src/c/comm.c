@@ -13,7 +13,9 @@ static CommUpdateCb s_update_cb = NULL;
 // Bumped 101 -> 102 when Phase 11 added blue_am/gold_am/gold_pm/blue_pm
 // (10 bytes each).
 // Bumped 102 -> 103 when dew_point/use_dew_point/pollen_level were added.
-#define PERSIST_KEY_CACHE 103
+// Bumped 103 -> 104 when uv_max was added (UV card now shows current UV
+// as primary, with daily peak as a "PEAK n" subtitle).
+#define PERSIST_KEY_CACHE 104
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -99,6 +101,7 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_Precip3))) { d->precip[3] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip4))) { d->precip[4] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_UV))) { d->uv = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_UVMax))) { d->uv_max = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_AQI))) { d->aqi = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Sunrise))) {
     strncpy(d->sunrise, t->value->cstring, sizeof(d->sunrise) - 1);
@@ -264,8 +267,17 @@ static void prv_initial_refresh(void *ctx) {
   comm_request_refresh();
 }
 
-void comm_init(void) {
+void comm_load_cache(void) {
   prv_load_cache();
+  // Trigger redraw if cache was loaded so the screen reconciles immediately.
+  // This prevents the imperial mock flash for metric users.
+  if (s_update_cb && weather_data_get()->valid) {
+    s_update_cb();
+  }
+}
+
+void comm_init(void) {
+  // Cache loading now happens separately in prv_init(), before window push.
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_inbox_dropped(prv_inbox_dropped);
   // Inbox bumped 1024 -> 2048 in Phase 12 to fit a 1500-byte radar

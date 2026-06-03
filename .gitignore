@@ -23,3 +23,6 @@ friction.log
 # Screenshots from local testing (keep repo screenshots/ folder)
 /screenshot*.png
 # *.png - removing to allow menu icons and other resources to be committed
+UNITS_FLASH_FIX_PLAN.md
+UNITS_FLASH_TIER1_IMPLEMENTATION.md
+UV_FIX_PLAN.md

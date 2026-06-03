@@ -54,6 +54,19 @@ void card_uv_draw(GContext *ctx, GRect bounds) {
       GRect(ox, c.y + 18, W, 24),
       GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 
+  // "PEAK n" subtitle in the secondary color, just below the qualitative
+  // label. Suppressed when uv_max is 0/unknown so we don't show "PEAK 0"
+  // before any daytime refresh has populated the daily peak.
+  if (d->uv_max > 0) {
+    char peak_buf[16];
+    snprintf(peak_buf, sizeof(peak_buf), "PEAK %d", d->uv_max);
+    graphics_context_set_text_color(ctx, theme_secondary());
+    graphics_draw_text(ctx, peak_buf,
+        fonts_get_system_font(FONT_KEY_GOTHIC_14),
+        GRect(ox, c.y + 38, W, 18),
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  }
+
   (void)H;
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
                       anim_get_frame());

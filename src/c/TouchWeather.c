@@ -205,6 +205,11 @@ static void prv_init(void) {
   settings_load();
   weather_data_init_mock();
 
+  // Load cached data BEFORE first window draw to prevent units flash.
+  // The callback must be set first so comm_load_cache() can trigger a redraw.
+  comm_set_update_callback(nav_redraw);
+  comm_load_cache();
+
   s_window = window_create();
   window_set_click_config_provider(s_window, prv_click_config_provider);
   window_set_window_handlers(s_window, (WindowHandlers) {
@@ -213,7 +218,6 @@ static void prv_init(void) {
   });
   window_stack_push(s_window, true);
 
-  comm_set_update_callback(nav_redraw);
   comm_init();
   anim_init();
 }

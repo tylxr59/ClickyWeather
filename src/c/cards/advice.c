@@ -647,7 +647,6 @@ static AdviceTier prv_classify(const WeatherData *d) {
   int feels_like = prv_normalized_feels_like(d);
   int wind_speed = prv_clamp_int(d->wind_speed, 0, 200);
   int humidity = prv_clamp_int(d->humidity, 0, 100);
-  int uv = prv_clamp_int(d->uv, 0, 15);
   int aqi = prv_clamp_int(d->aqi, 0, 500);
 
   const bool metric = (d->units == UNITS_METRIC);
@@ -672,7 +671,13 @@ static AdviceTier prv_classify(const WeatherData *d) {
                                (hour >= 22 || hour <= 5) &&
                                feels_like <= late_night_cool_thresh);
   bool trig_wind = (wind_speed >= wind_alert_thresh);
-  bool trig_high_uv = (daytime && uv >= 8);
+  // High-UV trigger uses today's forecast peak (uv_max) rather than the
+  // current UV. With current-UV semantics in `d->uv`, evaluating against
+  // the live value would only surface this advice during the brief midday
+  // peak window. Using uv_max ensures the advice shows on a high-UV day
+  // any time the user checks during daylight.
+  int uv_peak = prv_clamp_int(d->uv_max > 0 ? d->uv_max : d->uv, 0, 15);
+  bool trig_high_uv = (daytime && uv_peak >= 8);
   bool trig_bad_air = (aqi >= 100);
   bool trig_muggy = (humidity >= 75 && temp >= muggy_temp_thresh);
 
@@ -769,7 +774,10 @@ static void prv_generate_tier_headline(AdviceTier tier, const WeatherData *d,
       }
       break;
     case ADV_HIGH_UV:
-      snprintf(buf, buf_size, "UV INDEX: %d", d->uv);
+      // Match the trigger: show today's peak so the advice subtitle
+      // makes sense even when current UV has dropped off.
+      snprintf(buf, buf_size, "UV INDEX: %d",
+               d->uv_max > 0 ? d->uv_max : d->uv);
       break;
     case ADV_BAD_AIR:
       snprintf(buf, buf_size, "AQI: %d (POOR)", d->aqi);
