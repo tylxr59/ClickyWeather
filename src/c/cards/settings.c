@@ -111,7 +111,8 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
   {
     static const char *const hints[] = {
       "SEL = TOGGLE",
-      "HOLD = REORDER",
+      "HOLD UP = MOVE UP",
+      "HOLD DN = MOVE DN",
       "TAP = CURSOR",
     };
     const int hint_count = (int)(sizeof(hints) / sizeof(hints[0]));

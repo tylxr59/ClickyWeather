@@ -153,8 +153,11 @@ static void prv_select_click(ClickRecognizerRef r, void *ctx) {
 static void prv_select_long(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
   if (refresh_sheet_is_active()) return;
-  // Long-press SELECT is always theme toggle, even on Settings, so
-  // the user has a uniform shortcut across the whole app.
+  // Long-press SELECT toggles theme everywhere EXCEPT the Settings
+  // card, where it is a no-op so an accidental hold while the user is
+  // reaching for UP/DOWN reorder doesn't flip the theme out from under
+  // them. Theme is still reachable from every other card and Clay.
+  if (strcmp(nav_current_name(), "Settings") == 0) return;
   theme_set(theme_get() == THEME_LIGHT ? THEME_DARK : THEME_LIGHT);
   nav_redraw();
 }
