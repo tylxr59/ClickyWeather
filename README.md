@@ -192,7 +192,8 @@ pebble screenshot --emulator emery --vnc --no-open screenshot.png
 
 ---
 
-## Open Source
+## License
 
-TouchyWeather is open source in this repository.  
-Feel free to explore, fork, tweak card behavior, expand phrases, and make it even more delightfully extra.
+This project is licensed under a Source-Available Hybrid License (CC BY-NC 4.0 with Marketplace Restrictions).
+
+Please see the full [LICENSE.md](LICENSE.md) file for details regarding permissions, non-commercial use, and app store distribution rules.
