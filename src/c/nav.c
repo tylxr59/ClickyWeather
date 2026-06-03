@@ -6,6 +6,11 @@ static bool s_enabled[NAV_MAX_CARDS];
 static int s_card_count = 0;
 static int s_current = 0;
 
+// Traversal order: s_traversal[pos] = card index visited at slot `pos`.
+// Defaults to identity (registration order) and stays in sync as cards
+// register. Callers may override via nav_set_traversal().
+static int s_traversal[NAV_MAX_CARDS];
+
 static Layer *s_card_layer = NULL;
 static Layer *s_indicator_layer = NULL;
 
@@ -176,6 +181,7 @@ void nav_register(const char *name, CardDrawFn draw) {
   s_cards[s_card_count].name = name;
   s_cards[s_card_count].draw = draw;
   s_enabled[s_card_count] = true;
+  s_traversal[s_card_count] = s_card_count;
   s_card_count++;
 }
 
@@ -199,15 +205,25 @@ void nav_show_index(int idx) {
   nav_redraw();
 }
 
-static int prv_step_skip(int from, int dir) {
-  // Step from `from` in direction `dir` (+1 or -1), skipping disabled
-  // cards. Always returns a valid index because at minimum Main and
-  // Touch & Go (both permanently enabled) are present.
-  int idx = from;
+static int prv_pos_for_idx(int card_idx) {
   for (int i = 0; i < s_card_count; ++i) {
-    idx += dir;
-    while (idx < 0) idx += s_card_count;
-    idx %= s_card_count;
+    if (s_traversal[i] == card_idx) return i;
+  }
+  return -1;
+}
+
+static int prv_step_skip(int from, int dir) {
+  // Step from `from` in traversal order `dir` (+1 or -1), skipping
+  // disabled cards. Always returns a valid index because at minimum
+  // Main and Touch & Go (both permanently enabled) are present.
+  if (s_card_count == 0) return from;
+  int pos = prv_pos_for_idx(from);
+  if (pos < 0) pos = 0;
+  for (int i = 0; i < s_card_count; ++i) {
+    pos += dir;
+    while (pos < 0) pos += s_card_count;
+    pos %= s_card_count;
+    int idx = s_traversal[pos];
     if (s_enabled[idx]) return idx;
   }
   return from;
@@ -251,8 +267,33 @@ int nav_count_enabled(void) {
 int nav_active_enabled_index(void) {
   int n = 0;
   for (int i = 0; i < s_card_count; ++i) {
-    if (i == s_current) return n;
-    if (s_enabled[i]) n++;
+    int idx = s_traversal[i];
+    if (idx == s_current) return n;
+    if (s_enabled[idx]) n++;
   }
   return 0;
+}
+
+void nav_set_traversal(const int *order, int count) {
+  if (s_card_count == 0) return;
+  bool seen[NAV_MAX_CARDS] = {0};
+  int next_pos = 0;
+  if (order && count > 0) {
+    for (int i = 0; i < count && next_pos < s_card_count; ++i) {
+      int idx = order[i];
+      if (idx < 0 || idx >= s_card_count) continue;
+      if (seen[idx]) continue;
+      s_traversal[next_pos++] = idx;
+      seen[idx] = true;
+    }
+  }
+  // Fill any remaining slots in registration order so traversal is
+  // always a complete permutation of [0..s_card_count).
+  for (int i = 0; i < s_card_count && next_pos < s_card_count; ++i) {
+    if (!seen[i]) {
+      s_traversal[next_pos++] = i;
+      seen[i] = true;
+    }
+  }
+  nav_redraw();
 }

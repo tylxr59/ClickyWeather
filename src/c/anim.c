@@ -25,6 +25,10 @@ static void prv_tick(void *ctx) {
       if ((s_frame % 40) == 0) needs_redraw = true;
     }
   }
+  // Settings card has a rotating footer hint; refresh every ~2.5s.
+  if (!needs_redraw && strcmp(nav_current_name(), "Settings") == 0) {
+    if ((s_frame % 25) == 0) needs_redraw = true;
+  }
   // Refresh sheet has its own animated indicator; keep ticking while
   // it's open so the spinner advances on every card.
   if (refresh_sheet_is_active()) needs_redraw = true;

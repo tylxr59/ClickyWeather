@@ -35,6 +35,23 @@ static void prv_apply_card_visibility(void) {
   }
 }
 
+// Builds nav's traversal order from the user's Settings visual order:
+//   slot 0           = Main (always first)
+//   slots 1..10      = toggleable cards in current visual order
+//   slot 11          = Settings (always last)
+static void prv_sync_nav_traversal(void) {
+  int order[NAV_MAX_CARDS];
+  int n = 0;
+  order[n++] = 0;  // Main
+  for (int i = 0; i < SETTINGS_TOGGLEABLE_COUNT; ++i) {
+    ToggleId tid = settings_visual_id(i);
+    if ((int)tid >= SETTINGS_TOGGLEABLE_COUNT) continue;
+    order[n++] = s_toggle_to_card_idx[tid];
+  }
+  order[n++] = 11;  // Settings
+  nav_set_traversal(order, n);
+}
+
 // Touch is plumbed for emery / gabbro hardware. Requires firmware >= 5.92.
 // Flip ENABLE_TOUCH to 0 if running against an older simulator that
 // doesn't ship the touch_service API.
@@ -154,11 +171,36 @@ static void prv_down_click(ClickRecognizerRef r, void *ctx) {
   nav_next();
 }
 
+// Long-press UP / DOWN on the Settings card reorders the highlighted
+// toggleable row. On every other card these are no-ops (short-click
+// already handled the nav action on press-down).
+static void prv_up_long(ClickRecognizerRef r, void *ctx) {
+  (void)r; (void)ctx;
+  if (refresh_sheet_is_active()) return;
+  if (strcmp(nav_current_name(), "Settings") != 0) return;
+  if (settings_move_up(settings_cursor())) {
+    prv_sync_nav_traversal();
+    nav_redraw();
+  }
+}
+
+static void prv_down_long(ClickRecognizerRef r, void *ctx) {
+  (void)r; (void)ctx;
+  if (refresh_sheet_is_active()) return;
+  if (strcmp(nav_current_name(), "Settings") != 0) return;
+  if (settings_move_down(settings_cursor())) {
+    prv_sync_nav_traversal();
+    nav_redraw();
+  }
+}
+
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click);
   window_long_click_subscribe(BUTTON_ID_SELECT, 600, prv_select_long, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click);
+  window_long_click_subscribe(BUTTON_ID_UP, 500, prv_up_long, NULL);
+  window_long_click_subscribe(BUTTON_ID_DOWN, 500, prv_down_long, NULL);
 }
 
 static void prv_window_load(Window *window) {
@@ -178,6 +220,7 @@ static void prv_window_load(Window *window) {
   nav_register("Radar", card_radar_draw);
   nav_register("Settings", card_settings_draw);
   prv_apply_card_visibility();
+  prv_sync_nav_traversal();
   nav_show_index(0);
 
   // Pull-to-refresh sheet sits above the nav layers so it can paint

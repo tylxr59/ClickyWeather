@@ -51,3 +51,10 @@ void settings_cursor_advance(void);
 // ToggleId that should be drawn/toggled there. Decouples the on-screen
 // order from the enum order (which is fixed for persistence compat).
 ToggleId settings_visual_id(int visual_pos);
+
+// Reordering. Swaps the row at visual_pos with its neighbor and
+// persists the new order. Clamps at the ends (no wrap). The cursor
+// follows the moved row so the user can chain holds. Returns true if
+// a swap occurred.
+bool settings_move_up(int visual_pos);
+bool settings_move_down(int visual_pos);

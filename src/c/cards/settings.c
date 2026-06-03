@@ -3,17 +3,19 @@
 #include "../icons.h"
 #include "../ui.h"
 #include "../settings.h"
+#include "../anim.h"
 #include <stdio.h>
 
 // Phase 10D: Settings / Manage Cards card.
 //
 // Layout: header, 1 LOCKED row (MAIN) + 10 TOGGLEABLE rows, footer hint.
 //
-// Cursor model after Phase 10D:
+// Cursor model after Phase 10D + reorder:
 //   - TAP screen     → advance cursor to next toggleable row.
 //   - SELECT short   → toggle the highlighted row (no auto-advance).
 //   - SELECT long    → app-wide theme toggle (handled in TouchWeather.c).
 //   - UP / DOWN      → previous / next card (unchanged).
+//   - UP / DOWN long → move highlighted row up / down in the order.
 //
 // Cursor chevron is drawn in the violet advice accent so it pops
 // against fg labels and matches the Touch & Go card's identity color.
@@ -41,8 +43,11 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
       theme_fg(), UI_HEADER_Y, 18, icon_draw_settings_gear);
 
   GFont row_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-  int row_h = PBL_IF_ROUND_ELSE(15, 14);
-  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(4, 6);
+  // Round screens need 11 rows + header + footer to coexist with the
+  // page indicator at y=224. Tighter row pitch keeps RADAR clear of
+  // the rotating hint.
+  int row_h = PBL_IF_ROUND_ELSE(13, 14);
+  int top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(2, 6);
 
   int box_size = 14;
   int gap = 10;
@@ -99,15 +104,23 @@ void card_settings_draw(GContext *ctx, GRect bounds) {
                       settings_get_enabled(tid));
   }
 
-  // Footer hint: how to use this card.
-  // On round: sits below the page indicator dots (dots end ~y=232, screen=260).
-  // On rect: sits above the dots near the bottom edge.
+  // Footer hint: rotates through three short reminders so each one fits
+  // the safe horizontal area (bottom bezel on round clips wide text).
+  // On round: sits above the page indicator (dots y=224).
+  // On rect: sits between content and dots near the bottom edge.
   {
+    static const char *const hints[] = {
+      "SEL = TOGGLE",
+      "HOLD = REORDER",
+      "TAP = CURSOR",
+    };
+    const int hint_count = (int)(sizeof(hints) / sizeof(hints[0]));
+    // ~2.5s per hint (25 frames @ 100ms tick).
+    int phase = (int)((anim_get_frame() / 25) % (uint32_t)hint_count);
     GFont hint_font = fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD);
-    int hint_y = PBL_IF_ROUND_ELSE(H - 22, H - 32);
+    int hint_y = PBL_IF_ROUND_ELSE(H - 58, H - 32);
     graphics_context_set_text_color(ctx, theme_secondary());
-    const char *hint = PBL_IF_ROUND_ELSE("TAP / SELECT", "TAP=MOVE  SELECT=TOGGLE");
-    graphics_draw_text(ctx, hint, hint_font,
+    graphics_draw_text(ctx, hints[phase], hint_font,
         GRect(bounds.origin.x, hint_y, W, 16),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   }
