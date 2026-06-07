@@ -66,15 +66,17 @@ void weather_data_init_mock(void) {
   s_data.hours_precip_x10[2] = 0; s_data.hours_precip_x10[3] = 3;
   s_data.hours_precip_x10[4] = 2; s_data.hours_precip_x10[5] = 0;
 
-  // Phase 10B: Week Ahead mock — 4 days.
+  // Phase 10B: Week Ahead mock — 5 days.
   strncpy(s_data.days_label[0], "TUE", sizeof(s_data.days_label[0]));
   strncpy(s_data.days_label[1], "WED", sizeof(s_data.days_label[1]));
   strncpy(s_data.days_label[2], "THU", sizeof(s_data.days_label[2]));
   strncpy(s_data.days_label[3], "FRI", sizeof(s_data.days_label[3]));
+  strncpy(s_data.days_label[4], "SAT", sizeof(s_data.days_label[4]));
   s_data.days_high[0] = 78; s_data.days_low[0] = 58; s_data.days_cond[0] = COND_SUNNY;        s_data.days_pop[0] = 5;
   s_data.days_high[1] = 72; s_data.days_low[1] = 60; s_data.days_cond[1] = COND_RAIN;         s_data.days_pop[1] = 80;
   s_data.days_high[2] = 68; s_data.days_low[2] = 54; s_data.days_cond[2] = COND_CLOUDY;       s_data.days_pop[2] = 25;
   s_data.days_high[3] = 75; s_data.days_low[3] = 56; s_data.days_cond[3] = COND_PARTLY_CLOUDY; s_data.days_pop[3] = 10;
+  s_data.days_high[4] = 80; s_data.days_low[4] = 59; s_data.days_cond[4] = COND_SUNNY;        s_data.days_pop[4] = 0;
 
   // Phase 7: Night Sky mock — Waning Gibbous, 73% illuminated.
   s_data.moon_phase = 5;
