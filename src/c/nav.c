@@ -1,5 +1,6 @@
 #include "nav.h"
 #include "theme.h"
+#include "settings.h"
 
 static Card s_cards[NAV_MAX_CARDS];
 static bool s_enabled[NAV_MAX_CARDS];
@@ -228,18 +229,43 @@ static int prv_step_skip(int from, int dir) {
   }
   return from;
 }
+static int prv_step_no_wrap(int from, int dir) {
+  // Like prv_step_skip but never wraps past the array boundary. Returns
+  // -1 when there is no enabled card in direction `dir` before the edge,
+  // signalling that the user has navigated off the end of the carousel.
+  if (s_card_count == 0) return -1;
+  int pos = prv_pos_for_idx(from);
+  if (pos < 0) pos = 0;
+  pos += dir;
+  while (pos >= 0 && pos < s_card_count) {
+    int idx = s_traversal[pos];
+    if (s_enabled[idx]) return idx;
+    pos += dir;
+  }
+  return -1;
+}
+
+static void prv_nav_step(int dir) {
+  if (s_anim_active) return;
+  if (!settings_get_loop_nav()) {
+    // Non-looping: stepping past the first/last card exits the app so it
+    // can be used as a Quick Launch replacement.
+    int dst = prv_step_no_wrap(s_current, dir);
+    if (dst < 0) { window_stack_pop_all(true); return; }
+    if (dst == s_current) return;
+    prv_start_transition(dst, dir);
+    return;
+  }
+  int dst = prv_step_skip(s_current, dir);
+  if (dst == s_current) return;
+  prv_start_transition(dst, dir);
+}
 
 void nav_next(void) {
-  if (s_anim_active) return;
-  int dst = prv_step_skip(s_current, +1);
-  if (dst == s_current) return;
-  prv_start_transition(dst, +1);
+  prv_nav_step(+1);
 }
 void nav_prev(void) {
-  if (s_anim_active) return;
-  int dst = prv_step_skip(s_current, -1);
-  if (dst == s_current) return;
-  prv_start_transition(dst, -1);
+  prv_nav_step(-1);
 }
 
 void nav_redraw(void) {

@@ -1,6 +1,7 @@
 #include "comm.h"
 #include "weather_data.h"
 #include "theme.h"
+#include "settings.h"
 #include "refresh_sheet.h"
 #include "cards/cards.h"
 #include <string.h>
@@ -15,7 +16,10 @@ static CommUpdateCb s_update_cb = NULL;
 // Bumped 102 -> 103 when dew_point/use_dew_point/pollen_level were added.
 // Bumped 103 -> 104 when uv_max was added (UV card now shows current UV
 // as primary, with daily peak as a "PEAK n" subtitle).
-#define PERSIST_KEY_CACHE 104
+// Bumped 104 -> 105 when Week Ahead grew from 4 to 5 days (days_* arrays
+// enlarged, shifting every field after them — an old 4-day blob would
+// misalign and render a stale/garbage 5th day until the next fetch).
+#define PERSIST_KEY_CACHE 105
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -92,6 +96,9 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_UseDewPoint))) {
     d->use_dew_point = (t->value->int32 != 0);
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_LoopNavigation))) {
+    settings_set_loop_nav(t->value->int32 != 0);
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_PollenLevel))) {
     d->pollen_level = (int)t->value->int32;
   }
@@ -147,6 +154,21 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     MESSAGE_KEY_Hour3Pop, MESSAGE_KEY_Hour4Pop,
     MESSAGE_KEY_Hour5Pop, MESSAGE_KEY_Hour6Pop
   };
+  uint32_t hour_wind_keys[6] = {
+    MESSAGE_KEY_Hour1Wind, MESSAGE_KEY_Hour2Wind,
+    MESSAGE_KEY_Hour3Wind, MESSAGE_KEY_Hour4Wind,
+    MESSAGE_KEY_Hour5Wind, MESSAGE_KEY_Hour6Wind
+  };
+  uint32_t hour_wdir_keys[6] = {
+    MESSAGE_KEY_Hour1WindDir, MESSAGE_KEY_Hour2WindDir,
+    MESSAGE_KEY_Hour3WindDir, MESSAGE_KEY_Hour4WindDir,
+    MESSAGE_KEY_Hour5WindDir, MESSAGE_KEY_Hour6WindDir
+  };
+  uint32_t hour_precip_keys[6] = {
+    MESSAGE_KEY_Hour1Precip, MESSAGE_KEY_Hour2Precip,
+    MESSAGE_KEY_Hour3Precip, MESSAGE_KEY_Hour4Precip,
+    MESSAGE_KEY_Hour5Precip, MESSAGE_KEY_Hour6Precip
+  };
   for (int i = 0; i < 6; i++) {
     if ((t = dict_find(iter, hour_label_keys[i]))) {
       strncpy(d->hours_label[i], t->value->cstring,
@@ -162,30 +184,46 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     if ((t = dict_find(iter, hour_pop_keys[i]))) {
       d->hours_pop[i] = (uint8_t)t->value->int32;
     }
+    if ((t = dict_find(iter, hour_wind_keys[i]))) {
+      d->hours_wind[i] = t->value->int32;
+    }
+    if ((t = dict_find(iter, hour_wdir_keys[i]))) {
+      strncpy(d->hours_wind_dir[i], t->value->cstring,
+              sizeof(d->hours_wind_dir[i]) - 1);
+      d->hours_wind_dir[i][sizeof(d->hours_wind_dir[i]) - 1] = '\0';
+    }
+    if ((t = dict_find(iter, hour_precip_keys[i]))) {
+      d->hours_precip_x10[i] = t->value->int32;
+    }
   }
 
-  // Phase 10B: Week Ahead — 4 days (was 3).
-  uint32_t day_label_keys[4] = {
+  // Phase 10B: Week Ahead — 5 days (was 4).
+  uint32_t day_label_keys[5] = {
     MESSAGE_KEY_Day0Label, MESSAGE_KEY_Day1Label,
-    MESSAGE_KEY_Day2Label, MESSAGE_KEY_Day3Label
+    MESSAGE_KEY_Day2Label, MESSAGE_KEY_Day3Label,
+    MESSAGE_KEY_Day4Label
   };
-  uint32_t day_high_keys[4] = {
+  uint32_t day_high_keys[5] = {
     MESSAGE_KEY_Day0High, MESSAGE_KEY_Day1High,
-    MESSAGE_KEY_Day2High, MESSAGE_KEY_Day3High
+    MESSAGE_KEY_Day2High, MESSAGE_KEY_Day3High,
+    MESSAGE_KEY_Day4High
   };
-  uint32_t day_low_keys[4] = {
+  uint32_t day_low_keys[5] = {
     MESSAGE_KEY_Day0Low, MESSAGE_KEY_Day1Low,
-    MESSAGE_KEY_Day2Low, MESSAGE_KEY_Day3Low
+    MESSAGE_KEY_Day2Low, MESSAGE_KEY_Day3Low,
+    MESSAGE_KEY_Day4Low
   };
-  uint32_t day_cond_keys[4] = {
+  uint32_t day_cond_keys[5] = {
     MESSAGE_KEY_Day0Cond, MESSAGE_KEY_Day1Cond,
-    MESSAGE_KEY_Day2Cond, MESSAGE_KEY_Day3Cond
+    MESSAGE_KEY_Day2Cond, MESSAGE_KEY_Day3Cond,
+    MESSAGE_KEY_Day4Cond
   };
-  uint32_t day_pop_keys[4] = {
+  uint32_t day_pop_keys[5] = {
     MESSAGE_KEY_Day0Pop, MESSAGE_KEY_Day1Pop,
-    MESSAGE_KEY_Day2Pop, MESSAGE_KEY_Day3Pop
+    MESSAGE_KEY_Day2Pop, MESSAGE_KEY_Day3Pop,
+    MESSAGE_KEY_Day4Pop
   };
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     if ((t = dict_find(iter, day_label_keys[i]))) {
       strncpy(d->days_label[i], t->value->cstring,
               sizeof(d->days_label[i]) - 1);

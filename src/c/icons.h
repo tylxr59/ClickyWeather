@@ -27,6 +27,12 @@ void icon_draw_droplet(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_wind(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_arrow_up(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_arrow_down(GContext *ctx, GPoint center, int size, GColor color);
+
+// Compass arrow pointing toward `dir` ("N","NE",...,"NNW"). Used by the
+// 6 Hours card to show per-hour wind direction. Falls back to pointing
+// north for unrecognized strings.
+void icon_draw_compass_arrow(GContext *ctx, GPoint center, int size,
+                             GColor color, const char *dir);
 void icon_draw_sunrise(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_sunset(GContext *ctx, GPoint center, int size, GColor color);
 void icon_draw_pulse(GContext *ctx, GPoint center, int size, GColor color);

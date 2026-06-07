@@ -57,6 +57,22 @@ module.exports = [
     "items": [
       {
         "type": "heading",
+        "defaultValue": "Navigation"
+      },
+      {
+        "type": "toggle",
+        "messageKey": "LoopNavigation",
+        "label": "Loop cards at edges",
+        "description": "When on, pressing Up on the first card or Down on the last card wraps around the carousel. Turn off to exit the app at the edges, so you can use TouchyWeather as a Quick Launch replacement and leave with the hardware buttons.",
+        "defaultValue": true
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
         "defaultValue": "Location"
       },
       {

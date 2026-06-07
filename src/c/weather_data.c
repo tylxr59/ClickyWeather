@@ -50,6 +50,21 @@ void weather_data_init_mock(void) {
   s_data.hours_pop[0] = 5;  s_data.hours_pop[1] = 10;
   s_data.hours_pop[2] = 35; s_data.hours_pop[3] = 80;
   s_data.hours_pop[4] = 60; s_data.hours_pop[5] = 20;
+  // Wind (mph) for dry hours; direction varies to exercise the arrow.
+  s_data.hours_wind[0] = 8;  s_data.hours_wind[1] = 12;
+  s_data.hours_wind[2] = 15; s_data.hours_wind[3] = 10;
+  s_data.hours_wind[4] = 6;  s_data.hours_wind[5] = 9;
+  strncpy(s_data.hours_wind_dir[0], "N",  sizeof(s_data.hours_wind_dir[0]));
+  strncpy(s_data.hours_wind_dir[1], "NE", sizeof(s_data.hours_wind_dir[1]));
+  strncpy(s_data.hours_wind_dir[2], "E",  sizeof(s_data.hours_wind_dir[2]));
+  strncpy(s_data.hours_wind_dir[3], "SE", sizeof(s_data.hours_wind_dir[3]));
+  strncpy(s_data.hours_wind_dir[4], "SW", sizeof(s_data.hours_wind_dir[4]));
+  strncpy(s_data.hours_wind_dir[5], "W",  sizeof(s_data.hours_wind_dir[5]));
+  // Precip amount (tenths of in/mm). Only the rainy hours have an amount;
+  // those rows show the amount instead of the wind column.
+  s_data.hours_precip_x10[0] = 0; s_data.hours_precip_x10[1] = 0;
+  s_data.hours_precip_x10[2] = 0; s_data.hours_precip_x10[3] = 3;
+  s_data.hours_precip_x10[4] = 2; s_data.hours_precip_x10[5] = 0;
 
   // Phase 10B: Week Ahead mock — 4 days.
   strncpy(s_data.days_label[0], "TUE", sizeof(s_data.days_label[0]));

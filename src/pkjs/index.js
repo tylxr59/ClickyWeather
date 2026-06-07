@@ -253,11 +253,11 @@ function fetchWeather(lat, lon) {
   var fc = 'https://api.open-meteo.com/v1/forecast' +
     '?latitude=' + lat + '&longitude=' + lon +
     '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,uv_index' +
-    '&hourly=temperature_2m,weather_code,precipitation_probability' +
+    '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,precipitation' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
     '&temperature_unit=' + tempUnit +
     '&wind_speed_unit=' + windUnit +
-    '&timezone=auto&forecast_days=4';
+    '&timezone=auto&forecast_days=5';
 
   var aq = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
     '?latitude=' + lat + '&longitude=' + lon +
@@ -349,6 +349,9 @@ function fetchWeather(lat, lon) {
         // Phase 10A: Next 6 Hours (offsets +1h..+6h from current hour).
         var temps = hourly.temperature_2m || [];
         var codes = hourly.weather_code || [];
+        var hWind  = hourly.wind_speed_10m || [];
+        var hWdir  = hourly.wind_direction_10m || [];
+        var hPrcp  = hourly.precipitation || [];
         for (var hi = 1; hi <= 6; hi++) {
           var idx = startIdx + hi;
           var hourLabel = '';
@@ -362,16 +365,21 @@ function fetchWeather(lat, lon) {
           msg['Hour' + hi + 'Temp']  = Math.round(temps[idx] || 0);
           msg['Hour' + hi + 'Cond']  = mapWeatherCode(codes[idx] || 0);
           msg['Hour' + hi + 'Pop']   = Math.round(p[idx] || 0);
+          // Wind speed in selected unit (mph/kmh), rounded to integer.
+          msg['Hour' + hi + 'Wind']    = Math.round(hWind[idx] || 0);
+          msg['Hour' + hi + 'WindDir'] = degToCompass(hWdir[idx] || 0);
+          // Precip amount as integer tenths of in/mm (avoids floats on watch).
+          msg['Hour' + hi + 'Precip']  = Math.round((hPrcp[idx] || 0) * 10);
         }
 
-        // Phase 10B: Week Ahead (today + next 3 days = 4 total).
+        // Phase 10B: Week Ahead (today + next 4 days = 5 total).
         var dayCodes = daily.weather_code || [];
         var dayHigh  = daily.temperature_2m_max || [];
         var dayLow   = daily.temperature_2m_min || [];
         var dayPop   = daily.precipitation_probability_max || [];
         var dayTimes = daily.time || [];
         var dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-        for (var di = 0; di < 4; di++) {
+        for (var di = 0; di < 5; di++) {
           var lbl = '';
           if (dayTimes[di]) {
             var dt = new Date(dayTimes[di] + 'T00:00');

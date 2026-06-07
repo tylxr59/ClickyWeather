@@ -193,6 +193,46 @@ void icon_draw_arrow_down(GContext *ctx, GPoint c, int size, GColor color) {
   graphics_draw_line(ctx, tip, GPoint(tip.x + arm, tip.y - arm));
 }
 
+// Maps a compass abbreviation to a 16-point index (0=N, clockwise).
+// Returns -1 for unrecognized strings.
+static int compass_to_index(const char *dir) {
+  static const char *names[16] = {
+    "N","NNE","NE","ENE","E","ESE","SE","SSE",
+    "S","SSW","SW","WSW","W","WNW","NW","NNW"
+  };
+  if (!dir) return -1;
+  for (int i = 0; i < 16; ++i) {
+    if (strcmp(dir, names[i]) == 0) return i;
+  }
+  return -1;
+}
+
+void icon_draw_compass_arrow(GContext *ctx, GPoint c, int size,
+                             GColor color, const char *dir) {
+  int idx = compass_to_index(dir);
+  if (idx < 0) idx = 0;  // default: point north
+  int32_t angle = TRIG_MAX_ANGLE * idx / 16;
+
+  // Filled arrowhead defined pointing up (north), centered on origin.
+  int h = size / 2;
+  int w = size * 3 / 8;
+  GPathInfo info = (GPathInfo) {
+    .num_points = 4,
+    .points = (GPoint[]) {
+      { 0,  -h },      // tip
+      { -w,  h },      // bottom-left
+      { 0,   h - 2 }, // notch
+      {  w,  h },      // bottom-right
+    }
+  };
+  GPath *p = gpath_create(&info);
+  gpath_rotate_to(p, angle);
+  gpath_move_to(p, c);
+  graphics_context_set_fill_color(ctx, color);
+  gpath_draw_filled(ctx, p);
+  gpath_destroy(p);
+}
+
 static void draw_half_sun_with_rays(GContext *ctx, GPoint c, int size, GColor color) {
   // c is the center of the horizon line. Half-disc sits above it.
   int r = size * 3 / 10;

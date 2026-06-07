@@ -3,8 +3,12 @@
 
 // Persistence keys. Avoid collisions with comm.c PERSIST_KEY_CACHE=101.
 #define KEY_THEME            200
+#define KEY_LOOP_NAV         201  // bool: wrap card carousel at edges
 #define KEY_TOGGLE_BASE      210  // KEY_TOGGLE_BASE + ToggleId
 #define KEY_CARD_ORDER       220  // SETTINGS_TOGGLEABLE_COUNT bytes
+
+// Default: loop the carousel (wrap at the first/last card).
+static bool s_loop_nav = true;
 
 // Default visual order of rows in the Settings card. Decoupled from
 // the enum order so Touch & Go appears second (after the locked MAIN
@@ -85,10 +89,22 @@ void settings_load(void) {
       s_enabled[i] = persist_read_bool(KEY_TOGGLE_BASE + i);
     }
   }
+  if (persist_exists(KEY_LOOP_NAV)) {
+    s_loop_nav = persist_read_bool(KEY_LOOP_NAV);
+  }
 }
 
 void settings_save_theme(int theme_mode) {
   persist_write_int(KEY_THEME, theme_mode);
+}
+
+bool settings_get_loop_nav(void) {
+  return s_loop_nav;
+}
+
+void settings_set_loop_nav(bool loop) {
+  s_loop_nav = loop;
+  persist_write_bool(KEY_LOOP_NAV, loop);
 }
 
 bool settings_get_enabled(ToggleId id) {
