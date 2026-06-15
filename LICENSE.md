@@ -6,6 +6,13 @@ This software is licensed under the Creative Commons Attribution-NonCommercial
 4.0 International License (CC BY-NC 4.0), supplemented by the specific platform
 distribution restrictions detailed in the Addendum below.
 
+ClickyWeather is a modified version of TouchyWeather by ClickCalickClick:
+https://github.com/ClickCalickClick/TouchyWeather
+
+The original work and this fork are licensed under the Creative Commons
+Attribution-NonCommercial 4.0 International License, with the additional
+distribution restrictions stated in this file.
+
 To view a full copy of the standard CC BY-NC 4.0 license, visit:
 https://creativecommons.org/licenses/by-nc/4.0/legalcode
 
@@ -43,3 +50,4 @@ Holder places the following binding restriction on public distribution:
 
 
 Copyright (c) 2026 ClickCalickClick. All rights reserved.
+Modifications for ClickyWeather copyright (c) 2026 tylxr. All rights reserved.

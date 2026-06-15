@@ -119,6 +119,10 @@ pebble screenshot --emulator emery --vnc --no-open screenshot.png
 
 ## License
 
-This project is licensed under a Source-Available Hybrid License (CC BY-NC 4.0 with Marketplace Restrictions).
+ClickyWeather is a modified version of TouchyWeather by ClickCalickClick.
+
+This fork is licensed under the same Source-Available Hybrid License
+(CC BY-NC 4.0 with Marketplace Restrictions). Original work is copyright
+ClickCalickClick; ClickyWeather modifications are copyright tylxr.
 
 Please see the full [LICENSE.md](LICENSE.md) file for details regarding permissions, non-commercial use, and app store distribution rules.
