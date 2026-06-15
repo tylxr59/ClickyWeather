@@ -350,7 +350,9 @@ void comm_init(void) {
   app_message_register_inbox_dropped(prv_inbox_dropped);
   app_message_register_outbox_sent(prv_outbox_sent);
   app_message_register_outbox_failed(prv_outbox_failed);
-  app_message_open(1024, 256);
+  // The weather dictionary grew with hourly wind/precip context and a
+  // fifth week-ahead day. Keep enough inbox room for the full PKJS payload.
+  app_message_open(2048, 256);
   // Refresh-on-open: PKJS 'ready' usually fires soon after launch, but in
   // background-relaunch / cached-PKJS scenarios it doesn't. Send our own
   // request after a short delay so AppMessage is fully open first.

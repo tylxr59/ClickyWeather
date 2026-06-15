@@ -6,10 +6,10 @@
 #include "../weather_data.h"
 #include <stdio.h>
 
-// Phase 10B: Week Ahead card. 4 days of explicit numerics:
+// Phase 10B: Week Ahead card. 5 days of explicit numerics:
 //   day-label | cond-icon | low° (muted) "/" high° (color) | droplet+%
 // No abstract bar — every value is a number you can read directly.
-// Cluster-centered as a uniform-width row so all 4 rows align.
+// Cluster-centered as a uniform-width row so all rows align.
 //
 // Color rules:
 //   - Day label: theme_fg
@@ -64,10 +64,12 @@ void card_week_draw(GContext *ctx, GRect bounds) {
   int region_center = (header_ink_bottom + pill_top) / 2;
   int block_ink_h = (DAY_COUNT - 1) * row_h + 11;
   int row_ink_offset = PBL_IF_ROUND_ELSE(5, 4);
-  int top_y = region_center - block_ink_h / 2 - row_ink_offset;
-  if (top_y < UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4)) {
-    top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4);
+  int local_top_y = region_center - block_ink_h / 2 - row_ink_offset;
+  int min_top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4);
+  if (local_top_y < min_top_y) {
+    local_top_y = min_top_y;
   }
+  int top_y = bounds.origin.y + local_top_y;
 
   // Measure widest day label, low, high, and precip across all days for
   // uniform-column layout. Precip column collapses if no day qualifies.
