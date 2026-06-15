@@ -91,10 +91,10 @@ static void prv_init(void) {
   settings_load();
   
   // Initialize mock data only if we don't have cached weather data.
-  // comm_init() will load cached data if it exists; if not, mock data
+  // comm_load_cache() will load cached data if it exists; if not, mock data
   // provides sensible defaults for the UI until PKJS sends real data.
   // This prevents phantom alerts from mock data overwriting a real app state.
-  comm_init();
+  comm_load_cache();
   WeatherData *d = weather_data_get();
   if (!d->valid) {
     weather_data_init_mock();
@@ -109,6 +109,7 @@ static void prv_init(void) {
   window_stack_push(s_window, true);
 
   comm_set_update_callback(prv_handle_comm_update);
+  comm_init();
   anim_init();
 }
 

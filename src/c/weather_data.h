@@ -43,7 +43,8 @@ typedef struct {
   int dew_point;       // °F or °C (matches `units`)
   bool use_dew_point;  // true → main card shows dew point instead of humidity
   int precip[5];       // 0..100 % for now / +1h / +2h / +3h / +4h
-  int uv;              // 0..11+
+  int uv;              // 0..11+ — current UV (live)
+  int uv_max;          // 0..11+ — today's forecast peak (for "PEAK n" subtitle)
   int aqi;             // US AQI 0..500
   char sunrise[8];     // "6:14 AM"
   char sunset[8];      // "7:45 PM"
@@ -60,15 +61,18 @@ typedef struct {
   int  hours_temp[6];
   WeatherCondition hours_cond[6];
   uint8_t hours_pop[6];     // precipitation probability 0..100
+  int  hours_wind[6];       // wind speed in selected unit (mph/kmh)
+  char hours_wind_dir[6][4];// "NW", "ENE", etc.
+  int  hours_precip_x10[6]; // precip amount, tenths of in/mm (5 = 0.5)
 
-  // Phase 10B: Week Ahead card. Day 0 = today, day 3 = today+3.
+  // Phase 10B: Week Ahead card. Day 0 = today, day 4 = today+4.
   // Day 0's high/low duplicate `high`/`low` above but are kept here
   // so the card draws uniformly.
-  char days_label[4][4];    // "MON", "TUE", "WED", "THU"
-  int  days_high[4];
-  int  days_low[4];
-  WeatherCondition days_cond[4];
-  uint8_t days_pop[4];      // max precipitation probability 0..100
+  char days_label[5][4];    // "MON", "TUE", "WED", "THU", "FRI"
+  int  days_high[5];
+  int  days_low[5];
+  WeatherCondition days_cond[5];
+  uint8_t days_pop[5];      // max precipitation probability 0..100
 
   // Phase 7: Night Sky card. Phase 0..8 enum, illum 0..100, name like
   // "WAXING CRESCENT" or "FULL".

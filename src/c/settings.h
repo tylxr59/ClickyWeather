@@ -26,5 +26,12 @@ typedef enum {
 
 void settings_load(void);
 
+// Card-navigation loop preference. When true (default), pressing UP on the
+// first card or DOWN on the last card wraps around the carousel. When false,
+// reaching either boundary and stepping past it exits the app (Quick Launch
+// style). Persisted across launches.
+bool settings_get_loop_nav(void);
+void settings_set_loop_nav(bool loop);
+
 bool settings_get_enabled(ToggleId id);
 void settings_set_enabled(ToggleId id, bool enabled);

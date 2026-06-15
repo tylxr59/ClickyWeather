@@ -18,7 +18,7 @@
 //   - Precip droplet + %: theme_accent_blue, only when prob >= 30
 //   - "/" separator: theme_secondary
 
-#define DAY_COUNT     4
+#define DAY_COUNT     5
 #define POP_THRESHOLD 30
 
 static GColor high_color(WeatherCondition cond) {
@@ -38,7 +38,6 @@ static GColor high_color(WeatherCondition cond) {
 void card_week_draw(GContext *ctx, GRect bounds) {
   WeatherData *d = weather_data_get();
   int W = bounds.size.w;
-  int oy = bounds.origin.y;
 
   ui_draw_card_header_with_icon(ctx, bounds, "WEEK AHEAD",
                                 theme_fg(),
@@ -49,9 +48,28 @@ void card_week_draw(GContext *ctx, GRect bounds) {
   int icon_size = 16;
   int gap = 6;
   int row_h = PBL_IF_ROUND_ELSE(28, 26);
-  int top_y = oy + UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(12, 8);
 
-  // Measure widest day label, low, high, and precip across 4 days for
+  // Vertically center the block of rows in the region between the bottom of
+  // the "WEEK AHEAD" header ink and the top of the "UPDATED" pill. The header
+  // text is GOTHIC_18 whose ink bottom sits ~18px below UI_HEADER_Y (the 24px
+  // header box is taller than the glyphs). Pill geometry mirrors
+  // ui_draw_status_banner(). The row's visible ink starts ~4px below its
+  // row_y, and the block's visible ink height (first ink top -> last ink
+  // bottom) is (DAY_COUNT-1)*row_h + 11, so we offset by those to center the
+  // *ink* rather than the layout boxes.
+  int header_ink_bottom = UI_HEADER_Y + 18;
+  int banner_pad_bottom = PBL_IF_ROUND_ELSE(40, 22);
+  int banner_h = 22;
+  int pill_top = bounds.size.h - banner_pad_bottom - banner_h;
+  int region_center = (header_ink_bottom + pill_top) / 2;
+  int block_ink_h = (DAY_COUNT - 1) * row_h + 11;
+  int row_ink_offset = PBL_IF_ROUND_ELSE(5, 4);
+  int top_y = region_center - block_ink_h / 2 - row_ink_offset;
+  if (top_y < UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4)) {
+    top_y = UI_HEADER_Y + UI_HEADER_HEIGHT + PBL_IF_ROUND_ELSE(8, 4);
+  }
+
+  // Measure widest day label, low, high, and precip across all days for
   // uniform-column layout. Precip column collapses if no day qualifies.
   GSize day_max  = GSize(0, 0);
   GSize low_max  = GSize(0, 0);

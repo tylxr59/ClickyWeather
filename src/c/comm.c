@@ -17,7 +17,9 @@ static CommUpdateCb s_update_cb = NULL;
 // Bumped 104 -> 105 when wind_gust/precip_amount were added.
 // Bumped 105 -> 106 when update_failed was added.
 // Bumped 106 -> 107 when refresh_in_progress was added.
-#define PERSIST_KEY_CACHE 107
+// Bumped 107 -> 108 when uv_max, hourly wind/precip details, and the
+// fifth week-ahead day were added.
+#define PERSIST_KEY_CACHE 108
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -103,6 +105,9 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_UseDewPoint))) {
     d->use_dew_point = (t->value->int32 != 0);
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_LoopNavigation))) {
+    settings_set_loop_nav(t->value->int32 != 0);
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_PollenLevel))) {
     d->pollen_level = (int)t->value->int32;
   }
@@ -120,6 +125,7 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_Precip3))) { d->precip[3] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Precip4))) { d->precip[4] = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_UV))) { d->uv = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_UVMax))) { d->uv_max = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_AQI))) { d->aqi = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Sunrise))) {
     strncpy(d->sunrise, t->value->cstring, sizeof(d->sunrise) - 1);
@@ -165,6 +171,21 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     MESSAGE_KEY_Hour3Pop, MESSAGE_KEY_Hour4Pop,
     MESSAGE_KEY_Hour5Pop, MESSAGE_KEY_Hour6Pop
   };
+  uint32_t hour_wind_keys[6] = {
+    MESSAGE_KEY_Hour1Wind, MESSAGE_KEY_Hour2Wind,
+    MESSAGE_KEY_Hour3Wind, MESSAGE_KEY_Hour4Wind,
+    MESSAGE_KEY_Hour5Wind, MESSAGE_KEY_Hour6Wind
+  };
+  uint32_t hour_wdir_keys[6] = {
+    MESSAGE_KEY_Hour1WindDir, MESSAGE_KEY_Hour2WindDir,
+    MESSAGE_KEY_Hour3WindDir, MESSAGE_KEY_Hour4WindDir,
+    MESSAGE_KEY_Hour5WindDir, MESSAGE_KEY_Hour6WindDir
+  };
+  uint32_t hour_precip_keys[6] = {
+    MESSAGE_KEY_Hour1Precip, MESSAGE_KEY_Hour2Precip,
+    MESSAGE_KEY_Hour3Precip, MESSAGE_KEY_Hour4Precip,
+    MESSAGE_KEY_Hour5Precip, MESSAGE_KEY_Hour6Precip
+  };
   for (int i = 0; i < 6; i++) {
     if ((t = dict_find(iter, hour_label_keys[i]))) {
       strncpy(d->hours_label[i], t->value->cstring,
@@ -180,30 +201,46 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     if ((t = dict_find(iter, hour_pop_keys[i]))) {
       d->hours_pop[i] = (uint8_t)t->value->int32;
     }
+    if ((t = dict_find(iter, hour_wind_keys[i]))) {
+      d->hours_wind[i] = t->value->int32;
+    }
+    if ((t = dict_find(iter, hour_wdir_keys[i]))) {
+      strncpy(d->hours_wind_dir[i], t->value->cstring,
+              sizeof(d->hours_wind_dir[i]) - 1);
+      d->hours_wind_dir[i][sizeof(d->hours_wind_dir[i]) - 1] = '\0';
+    }
+    if ((t = dict_find(iter, hour_precip_keys[i]))) {
+      d->hours_precip_x10[i] = t->value->int32;
+    }
   }
 
-  // Phase 10B: Week Ahead — 4 days (was 3).
-  uint32_t day_label_keys[4] = {
+  // Phase 10B: Week Ahead — 5 days (was 4).
+  uint32_t day_label_keys[5] = {
     MESSAGE_KEY_Day0Label, MESSAGE_KEY_Day1Label,
-    MESSAGE_KEY_Day2Label, MESSAGE_KEY_Day3Label
+    MESSAGE_KEY_Day2Label, MESSAGE_KEY_Day3Label,
+    MESSAGE_KEY_Day4Label
   };
-  uint32_t day_high_keys[4] = {
+  uint32_t day_high_keys[5] = {
     MESSAGE_KEY_Day0High, MESSAGE_KEY_Day1High,
-    MESSAGE_KEY_Day2High, MESSAGE_KEY_Day3High
+    MESSAGE_KEY_Day2High, MESSAGE_KEY_Day3High,
+    MESSAGE_KEY_Day4High
   };
-  uint32_t day_low_keys[4] = {
+  uint32_t day_low_keys[5] = {
     MESSAGE_KEY_Day0Low, MESSAGE_KEY_Day1Low,
-    MESSAGE_KEY_Day2Low, MESSAGE_KEY_Day3Low
+    MESSAGE_KEY_Day2Low, MESSAGE_KEY_Day3Low,
+    MESSAGE_KEY_Day4Low
   };
-  uint32_t day_cond_keys[4] = {
+  uint32_t day_cond_keys[5] = {
     MESSAGE_KEY_Day0Cond, MESSAGE_KEY_Day1Cond,
-    MESSAGE_KEY_Day2Cond, MESSAGE_KEY_Day3Cond
+    MESSAGE_KEY_Day2Cond, MESSAGE_KEY_Day3Cond,
+    MESSAGE_KEY_Day4Cond
   };
-  uint32_t day_pop_keys[4] = {
+  uint32_t day_pop_keys[5] = {
     MESSAGE_KEY_Day0Pop, MESSAGE_KEY_Day1Pop,
-    MESSAGE_KEY_Day2Pop, MESSAGE_KEY_Day3Pop
+    MESSAGE_KEY_Day2Pop, MESSAGE_KEY_Day3Pop,
+    MESSAGE_KEY_Day4Pop
   };
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     if ((t = dict_find(iter, day_label_keys[i]))) {
       strncpy(d->days_label[i], t->value->cstring,
               sizeof(d->days_label[i]) - 1);
@@ -298,8 +335,17 @@ static void prv_initial_refresh(void *ctx) {
   comm_request_refresh();
 }
 
-void comm_init(void) {
+void comm_load_cache(void) {
   prv_load_cache();
+  // Trigger redraw if cache was loaded so the screen reconciles immediately.
+  // This prevents the imperial mock flash for metric users.
+  if (s_update_cb && weather_data_get()->valid) {
+    s_update_cb();
+  }
+}
+
+void comm_init(void) {
+  // Cache loading now happens separately in prv_init(), before window push.
   app_message_register_inbox_received(prv_inbox_received);
   app_message_register_inbox_dropped(prv_inbox_dropped);
   app_message_register_outbox_sent(prv_outbox_sent);

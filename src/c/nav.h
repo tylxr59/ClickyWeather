@@ -30,6 +30,13 @@ bool nav_is_enabled(int idx);
 int  nav_count_enabled(void);
 int  nav_active_enabled_index(void);
 
+// Card visit order. Defaults to registration order. Callers may override
+// with a permutation of card indices (length = nav_count()); nav_next /
+// nav_prev / the page indicator all walk this order. Indices not present
+// in the override are appended in registration order to keep the
+// traversal complete.
+void nav_set_traversal(const int *order, int count);
+
 // Draws the 5-dot page indicator. Cards do NOT draw it; nav owns it.
 // Cards may call this from within their draw fn if they want the
 // indicator inside a custom layout — but by default nav layers it on top.

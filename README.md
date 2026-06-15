@@ -1,8 +1,7 @@
 # ClickyWeather
-**Weather, but with attitude. Built for button-first Pebbles.**
+**Focused weather cards for button-first Pebbles.**
 
-ClickyWeather is a playful, card-based weather app for Pebble that mixes useful forecast data with personality.  
-It's designed around quick button presses, quick glances, and weather advice that can be practical, sarcastic, and occasionally unreasonably honest.
+ClickyWeather is a card-based weather app for Pebble built around quick button presses and glanceable forecast data.
 
 ## 🌟 Why this app is different
 ### **Focused weather UX** on Pebble  
@@ -12,12 +11,12 @@ ClickyWeather is a fork of [TouchyWeather](https://github.com/ClickCalickClick/T
 reimagined around button-based navigation. If you prefer navigating with hardware buttons over touch, this one's for you.
 
 Most Pebble weather apps are bare-bones. ClickyWeather is built around fast card navigation, button-triggered refresh,
-and a personality engine that actually has something to say.
+and focused cards that keep the watch UI lean.
 
 ### Changes from TouchyWeather
 
 - **Navigation animations** — Reworked to reflect vertical up/down button navigation instead of horizontal swipe transitions
-- **Radar and Touch & Go card removed** — Dropped in favour of keeping the app lean and card-focused
+- **Radar and Touch & Go card removed** — Dropped in favor of keeping the app lean and card-focused
 - **Settings moved** — Relocated from an in-app card to the Pebble companion app for a cleaner card flow
 
 ---
@@ -28,7 +27,7 @@ ClickyWeather is a carousel of focused weather cards:
 
 - **Main** — current temp, feels-like, high/low, wind, humidity, quick status
 - **6 Hours** — next 6-hour outlook
-- **Week Ahead** — 4-day forecast snapshot
+- **Week Ahead** — 5-day forecast snapshot
 - **Precipitation** — near-term rain probability view
 - **UV** — UV index + risk context
 - **Air Quality** — AQI + air quality signal
@@ -118,7 +117,8 @@ pebble screenshot --emulator emery --vnc --no-open screenshot.png
 
 ---
 
-## Open Source
+## License
 
-ClickyWeather is open source in this repository.  
-Feel free to explore, fork, tweak card behavior, expand phrases, and make it even more delightfully extra.
+This project is licensed under a Source-Available Hybrid License (CC BY-NC 4.0 with Marketplace Restrictions).
+
+Please see the full [LICENSE.md](LICENSE.md) file for details regarding permissions, non-commercial use, and app store distribution rules.

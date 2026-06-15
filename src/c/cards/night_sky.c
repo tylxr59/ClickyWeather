@@ -44,26 +44,12 @@ void card_night_sky_draw(GContext *ctx, GRect bounds) {
   graphics_context_set_fill_color(ctx, moon_shadow);
   graphics_fill_circle(ctx, moon_c, sky_r);
 
-  // Moon glyph with the sky color as the shadow color.
-  icon_draw_moon_phase(ctx, moon_c, moon_size, d->moon_phase,
+  // Moon glyph with the sky color as the shadow color. The shadow is
+  // computed scanline-by-scanline from `moon_illum` so it stays
+  // clipped inside the moon disc — no flanking masks needed.
+  icon_draw_moon_phase(ctx, moon_c, moon_size,
+                       d->moon_phase, d->moon_illum,
                        moon_body, moon_shadow);
-
-  // Mask shadow overflow: for non-full phases the offset shadow disc
-  // extends past the sky disc edge horizontally (up to ~r past it for
-  // the quarters). Without masking it shows up as a second navy disc
-  // beside the moon. Two bg-color rectangles flanking the sky disc
-  // mask any horizontal overflow without touching the header above
-  // or labels below.
-  int half = moon_size / 2;
-  graphics_context_set_fill_color(ctx, theme_bg());
-  graphics_fill_rect(ctx,
-      GRect(bounds.origin.x, moon_c.y - half,
-            (moon_c.x - sky_r) - bounds.origin.x, moon_size),
-      0, GCornerNone);
-  graphics_fill_rect(ctx,
-      GRect(moon_c.x + sky_r, moon_c.y - half,
-            (bounds.origin.x + W) - (moon_c.x + sky_r), moon_size),
-      0, GCornerNone);
 
   // Phase name word 1 (large, fg).
   int name1_y = moon_y + moon_size/2 + PBL_IF_ROUND_ELSE(10, 8);

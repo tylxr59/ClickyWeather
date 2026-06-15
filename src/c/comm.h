@@ -5,7 +5,10 @@
 void comm_init(void);
 void comm_deinit(void);
 
-// Ask PKJS to refresh now (e.g. startup or SELECT).
+// Load cached weather data before first draw (prevents units flash).
+void comm_load_cache(void);
+
+// Ask PKJS to refresh now (e.g. startup, SELECT, or settings change).
 void comm_request_refresh(void);
 
 // Called whenever weather_data is updated from inbox (so UI can redraw).

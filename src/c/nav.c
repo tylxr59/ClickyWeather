@@ -1,10 +1,16 @@
 #include "nav.h"
 #include "theme.h"
+#include "settings.h"
 
 static Card s_cards[NAV_MAX_CARDS];
 static bool s_enabled[NAV_MAX_CARDS];
 static int s_card_count = 0;
 static int s_current = 0;
+
+// Traversal order: s_traversal[pos] = card index visited at slot `pos`.
+// Defaults to identity (registration order) and stays in sync as cards
+// register. Callers may override via nav_set_traversal().
+static int s_traversal[NAV_MAX_CARDS];
 
 static Layer *s_card_layer = NULL;
 static Layer *s_indicator_layer = NULL;
@@ -176,6 +182,7 @@ void nav_register(const char *name, CardDrawFn draw) {
   s_cards[s_card_count].name = name;
   s_cards[s_card_count].draw = draw;
   s_enabled[s_card_count] = true;
+  s_traversal[s_card_count] = s_card_count;
   s_card_count++;
 }
 
@@ -199,31 +206,66 @@ void nav_show_index(int idx) {
   nav_redraw();
 }
 
-static int prv_step_skip(int from, int dir) {
-  // Step from `from` in direction `dir` (+1 or -1), skipping disabled
-  // cards. Always returns a valid index because at minimum Main is
-  // always present.
-  int idx = from;
+static int prv_pos_for_idx(int card_idx) {
   for (int i = 0; i < s_card_count; ++i) {
-    idx += dir;
-    while (idx < 0) idx += s_card_count;
-    idx %= s_card_count;
+    if (s_traversal[i] == card_idx) return i;
+  }
+  return -1;
+}
+
+static int prv_step_skip(int from, int dir) {
+  // Step from `from` in traversal order `dir` (+1 or -1), skipping
+  // disabled cards. Always returns a valid index because at minimum Main
+  // is always present.
+  if (s_card_count == 0) return from;
+  int pos = prv_pos_for_idx(from);
+  if (pos < 0) pos = 0;
+  for (int i = 0; i < s_card_count; ++i) {
+    pos += dir;
+    while (pos < 0) pos += s_card_count;
+    pos %= s_card_count;
+    int idx = s_traversal[pos];
     if (s_enabled[idx]) return idx;
   }
   return from;
 }
+static int prv_step_no_wrap(int from, int dir) {
+  // Like prv_step_skip but never wraps past the array boundary. Returns
+  // -1 when there is no enabled card in direction `dir` before the edge,
+  // signalling that the user has navigated off the end of the carousel.
+  if (s_card_count == 0) return -1;
+  int pos = prv_pos_for_idx(from);
+  if (pos < 0) pos = 0;
+  pos += dir;
+  while (pos >= 0 && pos < s_card_count) {
+    int idx = s_traversal[pos];
+    if (s_enabled[idx]) return idx;
+    pos += dir;
+  }
+  return -1;
+}
+
+static void prv_nav_step(int dir) {
+  if (s_anim_active) return;
+  if (!settings_get_loop_nav()) {
+    // Non-looping: stepping past the first/last card exits the app so it
+    // can be used as a Quick Launch replacement.
+    int dst = prv_step_no_wrap(s_current, dir);
+    if (dst < 0) { window_stack_pop_all(true); return; }
+    if (dst == s_current) return;
+    prv_start_transition(dst, dir);
+    return;
+  }
+  int dst = prv_step_skip(s_current, dir);
+  if (dst == s_current) return;
+  prv_start_transition(dst, dir);
+}
 
 void nav_next(void) {
-  if (s_anim_active) return;
-  int dst = prv_step_skip(s_current, +1);
-  if (dst == s_current) return;
-  prv_start_transition(dst, +1);
+  prv_nav_step(+1);
 }
 void nav_prev(void) {
-  if (s_anim_active) return;
-  int dst = prv_step_skip(s_current, -1);
-  if (dst == s_current) return;
-  prv_start_transition(dst, -1);
+  prv_nav_step(-1);
 }
 
 void nav_redraw(void) {
@@ -251,8 +293,33 @@ int nav_count_enabled(void) {
 int nav_active_enabled_index(void) {
   int n = 0;
   for (int i = 0; i < s_card_count; ++i) {
-    if (i == s_current) return n;
-    if (s_enabled[i]) n++;
+    int idx = s_traversal[i];
+    if (idx == s_current) return n;
+    if (s_enabled[idx]) n++;
   }
   return 0;
+}
+
+void nav_set_traversal(const int *order, int count) {
+  if (s_card_count == 0) return;
+  bool seen[NAV_MAX_CARDS] = {0};
+  int next_pos = 0;
+  if (order && count > 0) {
+    for (int i = 0; i < count && next_pos < s_card_count; ++i) {
+      int idx = order[i];
+      if (idx < 0 || idx >= s_card_count) continue;
+      if (seen[idx]) continue;
+      s_traversal[next_pos++] = idx;
+      seen[idx] = true;
+    }
+  }
+  // Fill any remaining slots in registration order so traversal is
+  // always a complete permutation of [0..s_card_count).
+  for (int i = 0; i < s_card_count && next_pos < s_card_count; ++i) {
+    if (!seen[i]) {
+      s_traversal[next_pos++] = i;
+      seen[i] = true;
+    }
+  }
+  nav_redraw();
 }
