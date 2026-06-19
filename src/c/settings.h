@@ -33,5 +33,9 @@ void settings_load(void);
 bool settings_get_loop_nav(void);
 void settings_set_loop_nav(bool loop);
 
+// Background update interval in seconds. Zero disables wakeup updates.
+int settings_get_background_interval(void);
+void settings_set_background_interval(int interval_secs);
+
 bool settings_get_enabled(ToggleId id);
 void settings_set_enabled(ToggleId id, bool enabled);

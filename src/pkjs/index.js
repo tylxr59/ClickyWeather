@@ -28,12 +28,22 @@ function degToCompass(deg) {
   return dirs[Math.round(deg / 45) % 8];
 }
 
+function use24h() {
+  var format = localStorage.getItem('timeFormat') || '0';
+  if (format === '1') return false;
+  if (format === '2') return true;
+  return localStorage.getItem('clockIs24h') === '1';
+}
+
 function fmtTime12(iso) {
   if (!iso) return '';
   var t = iso.split('T')[1] || '';
   var parts = t.split(':');
   var h = parseInt(parts[0], 10);
   var m = parts[1] || '00';
+  if (use24h()) {
+    return (h < 10 ? '0' + h : h) + ':' + m;
+  }
   var ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12; if (h === 0) h = 12;
   return h + ':' + m + ' ' + ampm;
@@ -261,9 +271,13 @@ function computeGoldenHour(date, lat, lng, utcOffsetSec) {
     var shifted = new Date(d.getTime() + (utcOffsetSec || 0) * 1000);
     var h = shifted.getUTCHours();
     var m = shifted.getUTCMinutes();
+    var mm = m < 10 ? '0' + m : m;
+    if (use24h()) {
+      return (h < 10 ? '0' + h : h) + ':' + mm;
+    }
     var ampm = h >= 12 ? 'PM' : 'AM';
     h = h % 12; if (h === 0) h = 12;
-    return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+    return h + ':' + mm + ' ' + ampm;
   }
 
   return {
@@ -424,9 +438,13 @@ function fetchWeather(lat, lon) {
           var hourLabel = '';
           if (times[idx]) {
             var hh = parseInt(times[idx].split('T')[1].split(':')[0], 10);
-            var ampm = hh >= 12 ? 'PM' : 'AM';
-            hh = hh % 12; if (hh === 0) hh = 12;
-            hourLabel = hh + ' ' + ampm;
+            if (use24h()) {
+              hourLabel = String(hh);
+            } else {
+              var ampm = hh >= 12 ? 'PM' : 'AM';
+              hh = hh % 12; if (hh === 0) hh = 12;
+              hourLabel = hh + ' ' + ampm;
+            }
           }
           msg['Hour' + hi + 'Label'] = hourLabel;
           msg['Hour' + hi + 'Temp']  = Math.round(temps[idx] || 0);
@@ -559,11 +577,16 @@ function locateAndFetch() {
 
 Pebble.addEventListener('ready', function() {
   console.log('ClickyWeather PKJS ready');
-  locateAndFetch();
 });
 
-Pebble.addEventListener('appmessage', function() {
-  locateAndFetch();
+Pebble.addEventListener('appmessage', function(e) {
+  var payload = (e && e.payload) || {};
+  if (payload.ClockIs24h !== undefined) {
+    localStorage.setItem('clockIs24h', payload.ClockIs24h ? '1' : '0');
+  }
+  if (payload.LastUpdated !== undefined) {
+    locateAndFetch();
+  }
 });
 
 Pebble.addEventListener('showConfiguration', function() {
@@ -583,6 +606,10 @@ Pebble.addEventListener('webviewclosed', function(e) {
   if (dict.UseDewPoint !== undefined) {
     localStorage.setItem('useDewPoint',
       dict.UseDewPoint.value ? '1' : '0');
+  }
+  if (dict.TimeFormat !== undefined) {
+    localStorage.setItem('timeFormat',
+      String(parseInt(dict.TimeFormat.value, 10) || 0));
   }
   if (dict.LocationOverride !== undefined && dict.LocationOverride.value) {
     localStorage.setItem('locationOverride', dict.LocationOverride.value);

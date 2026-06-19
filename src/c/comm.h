@@ -5,6 +5,9 @@
 void comm_init(void);
 void comm_deinit(void);
 
+// Minimal AppMessage lifecycle for wakeup-triggered background refreshes.
+void comm_background_init(void);
+
 // Load cached weather data before first draw (prevents units flash).
 void comm_load_cache(void);
 

@@ -35,6 +35,8 @@ ClickyWeather is a carousel of focused weather cards:
 - **Night Sky** — moon phase + illumination
 - **Golden Hour** — blue/golden hour timing blocks
 - **Alerts** — US weather alerts from the National Weather Service, with "NO DATA" outside supported regions
+- **Background refresh** — optional updates from every 30 minutes to every 24 hours while the app is closed
+- **Time formats** — match the watch clock or force 12/24-hour weather times
 
 ---
 

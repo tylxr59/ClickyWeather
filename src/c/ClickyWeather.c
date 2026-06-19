@@ -120,6 +120,14 @@ static void prv_deinit(void) {
 }
 
 int main(void) {
+  if (launch_reason() == APP_LAUNCH_WAKEUP) {
+    weather_data_init_mock();
+    settings_load();
+    comm_background_init();
+    app_event_loop();
+    return 0;
+  }
+
   prv_init();
   app_event_loop();
   prv_deinit();

@@ -8,6 +8,19 @@
 
 static CommUpdateCb s_update_cb = NULL;
 
+static int s_bg_fail_count = 0;
+static AppTimer *s_bg_timeout_timer = NULL;
+static AppTimer *s_bg_exit_timer = NULL;
+static bool s_is_background_mode = false;
+static WakeupId s_wakeup_id = -1;
+static Window *s_bg_window = NULL;
+
+#define PERSIST_KEY_WAKEUP_ID 300
+#define BG_MAX_BACKOFF_MINUTES 240
+
+static void prv_reschedule_wakeup(bool success);
+static void prv_background_finish(bool success);
+
 // Bumped from 100 -> 101 when last_updated was added to WeatherData,
 // to avoid loading a stale-layout blob from older app versions.
 // Bumped 101 -> 102 when Phase 11 added blue_am/gold_am/gold_pm/blue_pm
@@ -107,6 +120,25 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_LoopNavigation))) {
     settings_set_loop_nav(t->value->int32 != 0);
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_BackgroundUpdateInterval))) {
+    int old_interval = settings_get_background_interval();
+    int new_interval = t->type == TUPLE_CSTRING
+      ? atoi(t->value->cstring)
+      : (int)t->value->int32;
+    if (new_interval != 0 && (new_interval < 300 || new_interval > 86400)) {
+      new_interval = 0;
+    }
+    settings_set_background_interval(new_interval);
+    if (new_interval != old_interval) {
+      if (new_interval == 0) {
+        wakeup_cancel_all();
+        s_wakeup_id = -1;
+        persist_delete(PERSIST_KEY_WAKEUP_ID);
+      } else {
+        prv_reschedule_wakeup(true);
+      }
+    }
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PollenLevel))) {
     d->pollen_level = (int)t->value->int32;
@@ -290,12 +322,18 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     d->valid = true;
     prv_save_cache();
     if (s_update_cb) s_update_cb();
+    if (s_is_background_mode) {
+      prv_background_finish(!fetch_error_value);
+    }
   }
 }
 
 static void prv_inbox_dropped(AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage dropped: %d", (int)reason);
   prv_set_refresh_state(false, true);
+  if (s_is_background_mode) {
+    prv_background_finish(false);
+  }
 }
 
 static void prv_outbox_sent(DictionaryIterator *iter, void *context) {
@@ -309,20 +347,31 @@ static void prv_outbox_failed(DictionaryIterator *iter, AppMessageResult reason,
   (void)context;
   APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage send failed: %d", (int)reason);
   prv_set_refresh_state(false, true);
+  if (s_is_background_mode) {
+    prv_background_finish(false);
+  }
 }
 
 void comm_request_refresh(void) {
   DictionaryIterator *iter;
   if (app_message_outbox_begin(&iter) != APP_MSG_OK) {
     prv_set_refresh_state(false, true);
+    if (s_is_background_mode) {
+      prv_background_finish(false);
+    }
     return;
   }
   // Send a sentinel key to trigger PKJS fetch.
   dict_write_uint8(iter, MESSAGE_KEY_LastUpdated, 1);
+  dict_write_uint8(iter, MESSAGE_KEY_ClockIs24h,
+                   clock_is_24h_style() ? 1 : 0);
   dict_write_end(iter);
   prv_set_refresh_state(true, false);
   if (app_message_outbox_send() != APP_MSG_OK) {
     prv_set_refresh_state(false, true);
+    if (s_is_background_mode) {
+      prv_background_finish(false);
+    }
   }
 }
 
@@ -344,6 +393,100 @@ void comm_load_cache(void) {
   }
 }
 
+static void prv_bg_exit(void *context) {
+  (void)context;
+  s_bg_exit_timer = NULL;
+  app_message_deregister_callbacks();
+  if (s_bg_window) {
+    window_stack_remove(s_bg_window, false);
+    window_destroy(s_bg_window);
+    s_bg_window = NULL;
+  }
+}
+
+static void prv_background_finish(bool success) {
+  if (!s_is_background_mode) return;
+  s_is_background_mode = false;
+  if (s_bg_timeout_timer) {
+    app_timer_cancel(s_bg_timeout_timer);
+    s_bg_timeout_timer = NULL;
+  }
+  prv_reschedule_wakeup(success);
+  if (!s_bg_exit_timer) {
+    s_bg_exit_timer = app_timer_register(100, prv_bg_exit, NULL);
+  }
+}
+
+static void prv_bg_timeout(void *context) {
+  (void)context;
+  s_bg_timeout_timer = NULL;
+  prv_background_finish(false);
+}
+
+static void prv_reschedule_wakeup(bool success) {
+  int interval = settings_get_background_interval();
+  if (interval == 0) return;
+
+  int delay_seconds = interval;
+  if (success) {
+    s_bg_fail_count = 0;
+  } else {
+    s_bg_fail_count++;
+    int shift = s_bg_fail_count - 1;
+    if (shift > 5) shift = 5;
+    int backoff_minutes = 5 * (1 << shift);
+    if (backoff_minutes > BG_MAX_BACKOFF_MINUTES) {
+      backoff_minutes = BG_MAX_BACKOFF_MINUTES;
+    }
+    delay_seconds = backoff_minutes * 60;
+  }
+
+  wakeup_cancel_all();
+  s_wakeup_id = -1;
+
+  time_t base_time = time(NULL) + delay_seconds;
+  for (int attempt = 0; attempt < 15 && s_wakeup_id < 0; ++attempt) {
+    s_wakeup_id = wakeup_schedule(
+      base_time + attempt * SECONDS_PER_MINUTE, 0, true);
+  }
+
+  if (s_wakeup_id >= 0) {
+    persist_write_int(PERSIST_KEY_WAKEUP_ID, s_wakeup_id);
+  } else {
+    persist_delete(PERSIST_KEY_WAKEUP_ID);
+  }
+}
+
+static void prv_wakeup_handler(WakeupId id, int32_t reason) {
+  (void)id;
+  (void)reason;
+  s_wakeup_id = -1;
+  persist_delete(PERSIST_KEY_WAKEUP_ID);
+  comm_request_refresh();
+  prv_reschedule_wakeup(true);
+}
+
+void comm_background_init(void) {
+  if (settings_get_background_interval() == 0) return;
+
+  persist_delete(PERSIST_KEY_WAKEUP_ID);
+  s_wakeup_id = -1;
+  s_is_background_mode = true;
+
+  // A wakeup launch without a window exits its event loop immediately.
+  s_bg_window = window_create();
+  window_stack_push(s_bg_window, false);
+
+  app_message_register_inbox_received(prv_inbox_received);
+  app_message_register_inbox_dropped(prv_inbox_dropped);
+  app_message_register_outbox_sent(prv_outbox_sent);
+  app_message_register_outbox_failed(prv_outbox_failed);
+  app_message_open(2048, 256);
+
+  s_bg_timeout_timer = app_timer_register(28000, prv_bg_timeout, NULL);
+  comm_request_refresh();
+}
+
 void comm_init(void) {
   // Cache loading now happens separately in prv_init(), before window push.
   app_message_register_inbox_received(prv_inbox_received);
@@ -353,10 +496,26 @@ void comm_init(void) {
   // The weather dictionary grew with hourly wind/precip context and a
   // fifth week-ahead day. Keep enough inbox room for the full PKJS payload.
   app_message_open(2048, 256);
-  // Refresh-on-open: PKJS 'ready' usually fires soon after launch, but in
-  // background-relaunch / cached-PKJS scenarios it doesn't. Send our own
-  // request after a short delay so AppMessage is fully open first.
+  // Request after a short delay so AppMessage is fully open. PKJS waits for
+  // this explicit sentinel instead of fetching on every ready/config event.
   app_timer_register(750, prv_initial_refresh, NULL);
+
+  wakeup_service_subscribe(prv_wakeup_handler);
+  if (settings_get_background_interval() > 0) {
+    bool wakeup_valid = false;
+    if (persist_exists(PERSIST_KEY_WAKEUP_ID)) {
+      s_wakeup_id = persist_read_int(PERSIST_KEY_WAKEUP_ID);
+      time_t wakeup_time = 0;
+      wakeup_valid = wakeup_query(s_wakeup_id, &wakeup_time);
+      if (!wakeup_valid) {
+        s_wakeup_id = -1;
+        persist_delete(PERSIST_KEY_WAKEUP_ID);
+      }
+    }
+    if (!wakeup_valid) {
+      prv_reschedule_wakeup(true);
+    }
+  }
 }
 
 void comm_deinit(void) {

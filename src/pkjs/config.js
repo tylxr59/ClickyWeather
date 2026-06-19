@@ -23,6 +23,17 @@ module.exports = [
           { "label": "Light", "value": "0" },
           { "label": "Dark", "value": "1" }
         ]
+      },
+      {
+        "type": "radiogroup",
+        "messageKey": "TimeFormat",
+        "label": "Time format",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Match watch", "value": "0" },
+          { "label": "12-hour (2 PM)", "value": "1" },
+          { "label": "24-hour (14:00)", "value": "2" }
+        ]
       }
     ]
   },
@@ -65,6 +76,31 @@ module.exports = [
         "label": "Loop cards at edges",
         "description": "When on, pressing Up on the first card or Down on the last card wraps around the carousel. Turn off to exit the app at the edges.",
         "defaultValue": true
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Background Updates"
+      },
+      {
+        "type": "select",
+        "messageKey": "BackgroundUpdateInterval",
+        "label": "Auto-refresh interval",
+        "description": "Optionally fetch weather while the app is closed. More frequent updates may reduce battery life.",
+        "defaultValue": "0",
+        "options": [
+          { "label": "Disabled (manual refresh only)", "value": "0" },
+          { "label": "Every 30 minutes", "value": "1800" },
+          { "label": "Every hour", "value": "3600" },
+          { "label": "Every 3 hours", "value": "10800" },
+          { "label": "Every 6 hours", "value": "21600" },
+          { "label": "Every 12 hours", "value": "43200" },
+          { "label": "Every 24 hours", "value": "86400" }
+        ]
       }
     ]
   },
