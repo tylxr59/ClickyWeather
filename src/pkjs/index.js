@@ -3,7 +3,15 @@
 
 var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
+var currentVersion = require('./version');
 var clay = new Clay(clayConfig, null, { autoHandleEvents: false });
+
+var UPDATE_CHECK_URL =
+  'https://api.github.com/repos/tylxr59/ClickyWeather/releases/latest';
+var UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+var UPDATE_CHECK_TIME_KEY = 'updateCheckTime';
+var UPDATE_AVAILABLE_KEY = 'updateAvailable';
+var updateCheckInFlight = false;
 
 var COND = {
   SUNNY: 0, PARTLY_CLOUDY: 1, CLOUDY: 2, RAIN: 3, SNOW: 4, STORM: 5, FOG: 6
@@ -305,6 +313,73 @@ function xhr(url, cb) {
   req.send();
 }
 
+function parseVersion(value) {
+  var match = String(value || '').match(/^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+  if (!match) return null;
+  return [
+    parseInt(match[1], 10),
+    parseInt(match[2], 10),
+    parseInt(match[3], 10)
+  ];
+}
+
+function isNewerVersion(latest, current) {
+  var a = parseVersion(latest);
+  var b = parseVersion(current);
+  if (!a || !b) return false;
+  for (var i = 0; i < 3; i++) {
+    if (a[i] > b[i]) return true;
+    if (a[i] < b[i]) return false;
+  }
+  return false;
+}
+
+function cachedUpdateAvailable() {
+  return localStorage.getItem(UPDATE_AVAILABLE_KEY) === '1';
+}
+
+function sendUpdateAvailability(available) {
+  Pebble.sendAppMessage({
+    UpdateAvailable: available ? 1 : 0
+  }, function() {
+    console.log('update availability sent');
+  }, function(e) {
+    console.log('update availability send fail: ' + JSON.stringify(e));
+  });
+}
+
+function checkForUpdate() {
+  var now = Date.now();
+  var lastCheck = parseInt(localStorage.getItem(UPDATE_CHECK_TIME_KEY), 10) || 0;
+
+  if (now - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
+    sendUpdateAvailability(cachedUpdateAvailable());
+    return;
+  }
+  if (updateCheckInFlight) return;
+
+  updateCheckInFlight = true;
+  // Cache the attempt time too, so a temporary GitHub failure does not cause
+  // every weather refresh to retry the update endpoint.
+  localStorage.setItem(UPDATE_CHECK_TIME_KEY, String(now));
+  xhr(UPDATE_CHECK_URL, function(err, release) {
+    updateCheckInFlight = false;
+    if (err || !release || !release.tag_name) {
+      console.log('update check failed: ' +
+                  (err ? err.message : 'missing release tag'));
+      sendUpdateAvailability(cachedUpdateAvailable());
+      return;
+    }
+
+    var available = isNewerVersion(release.tag_name, currentVersion);
+    localStorage.setItem(UPDATE_AVAILABLE_KEY, available ? '1' : '0');
+    console.log('update check: installed=' + currentVersion +
+                ' latest=' + release.tag_name +
+                ' available=' + available);
+    sendUpdateAvailability(available);
+  });
+}
+
 function sendFetchError(reason) {
   console.log('fetch failed: ' + reason);
   Pebble.sendAppMessage({
@@ -422,6 +497,7 @@ function fetchWeather(lat, lon) {
         msg.Units = units === 'metric' ? 1 : 0;
         msg.LastUpdated = Math.floor(Date.now() / 1000);
         msg.FetchError = 0;
+        msg.UpdateAvailable = cachedUpdateAvailable() ? 1 : 0;
 
         // Pollen — European CAMS strategy:
         //   Europe   -> use Open-Meteo CAMS fields already in the AQ
@@ -577,6 +653,7 @@ function locateAndFetch() {
 
 Pebble.addEventListener('ready', function() {
   console.log('ClickyWeather PKJS ready');
+  checkForUpdate();
 });
 
 Pebble.addEventListener('appmessage', function(e) {
@@ -585,6 +662,7 @@ Pebble.addEventListener('appmessage', function(e) {
     localStorage.setItem('clockIs24h', payload.ClockIs24h ? '1' : '0');
   }
   if (payload.LastUpdated !== undefined) {
+    checkForUpdate();
     locateAndFetch();
   }
 });

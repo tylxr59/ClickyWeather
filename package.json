@@ -1,7 +1,7 @@
 {
   "name": "ClickyWeather",
   "author": "tylxr",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "keywords": [
     "pebble-app"
   ],
@@ -145,7 +145,8 @@
       "PrecipAmount",
       "FetchError",
       "LoopNavigation",
-      "BackgroundUpdateInterval"
+      "BackgroundUpdateInterval",
+      "UpdateAvailable"
     ],
     "resources": {
       "media": [

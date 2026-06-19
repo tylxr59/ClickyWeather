@@ -30,6 +30,7 @@ void weather_data_init_mock(void) {
   s_data.last_updated = 0;
   s_data.update_failed = false;
   s_data.refresh_in_progress = false;
+  s_data.update_available = false;
   s_data.valid = true;
 
   // Phase 10A: Next 6 Hours mock (extends the original 4-hour set with

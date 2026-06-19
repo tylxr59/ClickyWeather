@@ -29,10 +29,14 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
                   bounds.origin.y + bounds.size.h - pad_bottom - banner_h,
                   banner_w, banner_h);
 
-  GColor pill_bg = (mode == STATUS_BANNER_RAIN || mode == STATUS_BANNER_FAILED)
+  GColor pill_bg = (mode == STATUS_BANNER_RAIN ||
+                    mode == STATUS_BANNER_FAILED ||
+                    mode == STATUS_BANNER_UPDATE_AVAILABLE)
                    ? theme_accent_orange()
                    : theme_muted();
-  GColor txt_color = (mode == STATUS_BANNER_RAIN || mode == STATUS_BANNER_FAILED)
+  GColor txt_color = (mode == STATUS_BANNER_RAIN ||
+                      mode == STATUS_BANNER_FAILED ||
+                      mode == STATUS_BANNER_UPDATE_AVAILABLE)
                      ? GColorBlack
                      : theme_fg();
 
@@ -42,6 +46,8 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
   char buf[32];
   if (mode == STATUS_BANNER_FAILED) {
     snprintf(buf, sizeof(buf), "UPDATE FAILED");
+  } else if (mode == STATUS_BANNER_UPDATE_AVAILABLE) {
+    snprintf(buf, sizeof(buf), "UPDATE AVAILABLE");
   } else if (mode == STATUS_BANNER_REFRESHING) {
     snprintf(buf, sizeof(buf), "UPDATING...");
   } else if (mode == STATUS_BANNER_RAIN) {
@@ -63,6 +69,7 @@ bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
                          uint32_t last_updated_secs,
                          bool update_failed,
                          bool refresh_in_progress,
+                         bool update_available,
                          uint32_t frame) {
   bool has_rain = minutes_to_rain >= 0;
   StatusBannerMode mode;
@@ -70,9 +77,17 @@ bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
     mode = STATUS_BANNER_REFRESHING;
   } else if (update_failed) {
     mode = STATUS_BANNER_FAILED;
+  } else if (has_rain && update_available) {
+    // 100ms frames; rotate rain, app update, and weather age every 4s.
+    uint32_t slot = (frame / 40) % 3;
+    mode = slot == 0 ? STATUS_BANNER_RAIN :
+           slot == 1 ? STATUS_BANNER_UPDATE_AVAILABLE :
+                       STATUS_BANNER_UPDATED;
   } else if (has_rain) {
-    // 100ms frames; 40 frames = 4s. Toggle every 4s.
     mode = ((frame / 40) & 1) ? STATUS_BANNER_UPDATED : STATUS_BANNER_RAIN;
+  } else if (update_available) {
+    mode = ((frame / 40) & 1) ? STATUS_BANNER_UPDATED :
+                                STATUS_BANNER_UPDATE_AVAILABLE;
   } else {
     mode = STATUS_BANNER_UPDATED;
   }

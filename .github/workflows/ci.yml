@@ -35,6 +35,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify release version
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          PKJS_VERSION="$(node -p "require('./src/pkjs/version')")"
+          test "$PACKAGE_VERSION" = "$PKJS_VERSION"
+          test "$GITHUB_REF_NAME" = "v$PACKAGE_VERSION"
+
       - name: Build PBW
         run: pebble build
 

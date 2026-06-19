@@ -32,7 +32,8 @@ static void prv_background_finish(bool success);
 // Bumped 106 -> 107 when refresh_in_progress was added.
 // Bumped 107 -> 108 when uv_max, hourly wind/precip details, and the
 // fifth week-ahead day were added.
-#define PERSIST_KEY_CACHE 108
+// Bumped 108 -> 109 when update_available was added.
+#define PERSIST_KEY_CACHE 109
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -102,6 +103,13 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
       d->last_updated = (uint32_t)time(NULL);
     }
     got_anything = true;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_UpdateAvailable))) {
+    d->update_available = (t->value->int32 != 0);
+    if (d->valid) {
+      prv_save_cache();
+    }
+    if (s_update_cb) s_update_cb();
   }
   if ((t = dict_find(iter, MESSAGE_KEY_Temp))) { d->temp = t->value->int32; got_anything = true; }
   if ((t = dict_find(iter, MESSAGE_KEY_FeelsLike))) { d->feels_like = t->value->int32; }
