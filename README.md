@@ -1,17 +1,19 @@
 # ClickyWeather
-**Focused weather cards for button-first Pebbles.**
+
+Focused weather cards for button-first Pebbles.
 
 ClickyWeather is a card-based weather app for Pebble built around quick button presses and glanceable forecast data.
 
-## 🌟 Why this app is different
-### **Focused weather UX** on Pebble  
-### **Built only for `gabbro` and `emery`**  
+## Install
+
+Download a tagged PBW from [GitHub Releases](https://github.com/tylxr59/ClickyWeather/releases).
+
+## Overview
 
 ClickyWeather is a fork of [TouchyWeather](https://github.com/ClickCalickClick/TouchyWeather) by ClickCalickClick,
 reimagined around button-based navigation. If you prefer navigating with hardware buttons over touch, this one's for you.
 
-Most Pebble weather apps are bare-bones. ClickyWeather is built around fast card navigation, button-triggered refresh,
-and focused cards that keep the watch UI lean.
+ClickyWeather is built around fast card navigation, button-triggered refresh, and focused cards that keep the watch UI lean.
 
 ### Changes from TouchyWeather
 
@@ -19,9 +21,7 @@ and focused cards that keep the watch UI lean.
 - **Radar and Touch & Go card removed** — Dropped in favor of keeping the app lean and card-focused
 - **Settings moved** — Relocated from an in-app card to the Pebble companion app for a cleaner card flow
 
----
-
-## Feature Overview
+## Features
 
 ClickyWeather is a carousel of focused weather cards:
 
@@ -37,8 +37,6 @@ ClickyWeather is a carousel of focused weather cards:
 - **Alerts** — US weather alerts from the National Weather Service, with "NO DATA" outside supported regions
 - **Background refresh** — optional updates from every 30 minutes to every 24 hours while the app is closed
 - **Time formats** — match the watch clock or force 12/24-hour weather times
-
----
 
 ## Screenshots
 
@@ -65,9 +63,7 @@ Current checked-in screenshots are for **emery**. Use UP/DOWN to move between ca
   </tr>
 </table>
 
----
-
-## Customizing Your Cards
+## Setup
 
 ClickyWeather lets you customize which cards appear on your watch through the **phone app settings**.
 
@@ -77,38 +73,42 @@ Open the phone app's configuration page and navigate to the **Cards** section. T
 
 Your choices sync to the watch immediately. This means you can run ultra-minimal (just core weather) or full nerd mode (everything enabled).
 
-**Note:** The **Main** card is always enabled and cannot be disabled—it's your anchor weather view.
-
----
+The **Main** card is always enabled and cannot be disabled—it is the anchor weather view.
 
 ## Controls
 
 - **UP/DOWN**: previous/next card
 - **SELECT**: refresh weather
 
----
-
-## Platform Support
+## Requirements
 
 ClickyWeather targets only:
 
-- `emery`
-- `gabbro`
+- Pebble Time 2 / `emery`
+- Pebble Round 2 / `gabbro`
 
-No legacy non-touch Pebble targets are included.
+- A paired phone with location access and internet connectivity for weather updates
+- Pebble SDK / Pebble Tool, only when building locally
 
----
+No legacy Pebble targets are included.
 
-## Build / Run
+## Troubleshooting
+
+- If weather does not load, confirm that the paired phone has internet and location access.
+- If alerts show `NO DATA`, the configured location may be outside the US National Weather Service coverage area.
+- If card changes do not appear, reopen settings and save the card selection again.
+
+## Development
 
 ```bash
-pebble build
+npm ci
+npm run build
 ```
 
 Install to emulator (headless-friendly):
 
 ```bash
-pebble install --emulator emery --vnc
+npm run install:emery
 ```
 
 Take a screenshot:
@@ -117,7 +117,25 @@ Take a screenshot:
 pebble screenshot --emulator emery --vnc --no-open screenshot.png
 ```
 
----
+The compiled package is written to `build/ClickyWeather.pbw`.
+
+## Releases
+
+Pushing a version tag such as `v1.2.0` runs the GitHub Actions release workflow. The workflow verifies that the tag matches both `package.json` and `src/pkjs/version.js`, builds the PBW, uploads it as a workflow artifact, and attaches it to the matching GitHub Release.
+
+To repair a missing or outdated PBW for an existing tag, open **Actions → Release PBW → Run workflow** and enter that tag. Manual runs check out the exact tag before rebuilding and replacing the release asset. Release current code with a new version and tag instead of reusing an older tag.
+
+## Project Layout
+
+```text
+src/c/                 Pebble C app, weather cards, navigation, and UI
+src/pkjs/              PebbleKitJS weather requests, settings, and version check
+resources/images/      Pebble menu icon
+screenshots/           Checked-in Pebble Time 2 screenshots
+package.json           Pebble metadata, scripts, and message keys
+wscript                Pebble SDK build script
+pebble-appstore.md     Version-controlled proposed Pebble Appstore listing copy
+```
 
 ## License
 
@@ -128,3 +146,7 @@ This fork is licensed under the same Source-Available Hybrid License
 ClickCalickClick; ClickyWeather modifications are copyright tylxr.
 
 Please see the full [LICENSE.md](LICENSE.md) file for details regarding permissions, non-commercial use, and app store distribution rules.
+
+## Notes
+
+AI assistance was used during development for code review, UI polish, documentation drafting, and implementation support. The app behavior, configuration choices, and release decisions were reviewed by the project maintainer.

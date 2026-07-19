@@ -1,11 +1,17 @@
 {
-  "name": "ClickyWeather",
+  "name": "clickyweather",
   "author": "tylxr",
+  "description": "Card-based weather app for button-first Pebble watches.",
   "version": "1.2.0",
   "keywords": [
     "pebble-app"
   ],
   "private": true,
+  "scripts": {
+    "build": "pebble build",
+    "clean": "pebble clean",
+    "install:emery": "pebble install --emulator emery --vnc"
+  },
   "dependencies": {
     "@rebble/clay": "^1.0.8"
   },
