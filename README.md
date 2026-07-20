@@ -36,6 +36,7 @@ ClickyWeather is a carousel of focused weather cards:
 - **Golden Hour** — blue/golden hour timing blocks
 - **Alerts** — US weather alerts from the National Weather Service, with "NO DATA" outside supported regions
 - **Background refresh** — optional updates from every 30 minutes to every 24 hours while the app is closed
+- **App update checks** — choose Never, every weather refresh, a timed interval, or an immediate manual check
 - **Time formats** — match the watch clock or force 12/24-hour weather times
 - **Detailed forecasts** — hold SELECT on 6 Hours, Week Ahead, Precipitation, UV, or Air Quality for a deeper view
 - **Release notices** — the watch flags newer GitHub releases and shows their notes once after installation
@@ -45,8 +46,10 @@ ClickyWeather is a carousel of focused weather cards:
 Privacy is a core product requirement. ClickyWeather does not include analytics,
 telemetry, advertising identifiers, usage tracking, or user profiling. It sends
 location coordinates only to the weather and alert services needed to produce
-the forecast, and contacts GitHub at most once per day to check whether a newer
-release exists. No upstream analytics or tracking changes will be accepted.
+the forecast. Optional update checks contact only the public GitHub Releases API
+at the configured frequency (daily by default) or when requested manually; they
+do not include location or an app-added device identifier. No upstream analytics
+or tracking changes will be accepted.
 
 ## Screenshots
 
@@ -75,7 +78,14 @@ Current checked-in screenshots are for **emery**. Use UP/DOWN to move between ca
 
 ## Setup
 
-ClickyWeather lets you customize which cards appear on your watch through the **phone app settings**.
+ClickyWeather lets you customize its display, weather refresh, and app update checks through the **phone app settings**.
+
+Under **App Updates**, choose how often the paired phone may check GitHub for a
+new release. Timed checks happen when the app opens or weather refreshes and do
+not create a separate watch wakeup. **Every weather refresh** can increase phone
+network use when background weather updates are frequent; **Never automatically**
+disables scheduled checks. **Check for updates now** saves and closes settings,
+then performs one immediate check regardless of the selected interval.
 
 Open the phone app's configuration page and navigate to the **Cards** section. Toggle any of the 9 optional cards on or off to build your ideal weather deck:
 
@@ -136,7 +146,7 @@ The compiled package is written to `build/ClickyWeather.pbw`.
 Every release has a newest-first entry in `CHANGELOG.md`. Its bullets appear once
 on the watch after the update and are also used as the GitHub Release notes.
 
-Pushing a version tag such as `v1.3.0` runs the GitHub Actions release workflow. The workflow verifies that the tag matches `CHANGELOG.md`, `package.json`, and `src/pkjs/version.js`, builds the PBW, uploads it as a workflow artifact, and attaches it to the matching GitHub Release. Because ClickyWeather is distributed outside the Pebble Appstore, the watch checks GitHub Releases daily and displays `UPDATE AVAILABLE` when a newer tagged PBW can be downloaded.
+Pushing a version tag such as `v1.3.1` runs the GitHub Actions release workflow. The workflow verifies that the tag matches `CHANGELOG.md`, `package.json`, and `src/pkjs/version.js`, builds the PBW, uploads it as a workflow artifact, and attaches it to the matching GitHub Release. Because ClickyWeather is distributed outside the Pebble Appstore, configurable phone-side checks can query GitHub Releases and display `UPDATE AVAILABLE` when a newer tagged PBW can be downloaded.
 
 To repair a missing or outdated PBW for an existing tag, open **Actions → Release PBW → Run workflow** and enter that tag. Manual runs check out the exact tag before rebuilding and replacing the release asset. Release current code with a new version and tag instead of reusing an older tag.
 

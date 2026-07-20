@@ -3,14 +3,18 @@
 
 var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
+var customClay = require('./custom-clay');
 var currentVersion = require('./version');
-var clay = new Clay(clayConfig, null, { autoHandleEvents: false });
+var clay = new Clay(clayConfig, customClay, { autoHandleEvents: false });
 
 var UPDATE_CHECK_URL =
   'https://api.github.com/repos/tylxr59/ClickyWeather/releases/latest';
-var UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+var UPDATE_CHECK_DEFAULT_INTERVAL_SECS = 24 * 60 * 60;
+var UPDATE_CHECK_EVERY_WEATHER_FETCH = -1;
+var UPDATE_CHECK_INTERVAL_KEY = 'appUpdateCheckInterval';
 var UPDATE_CHECK_TIME_KEY = 'updateCheckTime';
 var UPDATE_AVAILABLE_KEY = 'updateAvailable';
+var UPDATE_CHECK_VERSION_KEY = 'updateCheckInstalledVersion';
 var updateCheckInFlight = false;
 var fetchStartedAt = 0;
 var FETCH_IN_FLIGHT_MS = 20000;
@@ -344,6 +348,51 @@ function cachedUpdateAvailable() {
   return localStorage.getItem(UPDATE_AVAILABLE_KEY) === '1';
 }
 
+function validUpdateCheckInterval(value) {
+  return value === 0 || value === UPDATE_CHECK_EVERY_WEATHER_FETCH ||
+         value === 21600 || value === 43200 || value === 86400 ||
+         value === 259200 || value === 604800;
+}
+
+function claySettingValue(name) {
+  try {
+    var saved = JSON.parse(localStorage.getItem('clay-settings') || '{}');
+    var value = saved[name];
+    if (value && value.value !== undefined) value = value.value;
+    return value;
+  } catch (err) {
+    console.log('saved setting read skipped: ' + err.message);
+    return undefined;
+  }
+}
+
+function getUpdateCheckInterval() {
+  var value = localStorage.getItem(UPDATE_CHECK_INTERVAL_KEY);
+  if (value === null) value = claySettingValue('AppUpdateCheckInterval');
+  value = parseInt(value, 10);
+  return validUpdateCheckInterval(value)
+    ? value : UPDATE_CHECK_DEFAULT_INTERVAL_SECS;
+}
+
+function setUpdateCheckInterval(value) {
+  value = parseInt(value, 10);
+  if (!validUpdateCheckInterval(value)) {
+    value = UPDATE_CHECK_DEFAULT_INTERVAL_SECS;
+  }
+  localStorage.setItem(UPDATE_CHECK_INTERVAL_KEY, String(value));
+}
+
+function prepareUpdateCheckCache() {
+  var cachedVersion = localStorage.getItem(UPDATE_CHECK_VERSION_KEY);
+  if (cachedVersion === currentVersion) return;
+
+  // PKJS storage can survive an app upgrade or deliberate downgrade. A cached
+  // result from another installed version must not leak into this version.
+  localStorage.setItem(UPDATE_CHECK_VERSION_KEY, currentVersion);
+  localStorage.removeItem(UPDATE_CHECK_TIME_KEY);
+  localStorage.removeItem(UPDATE_AVAILABLE_KEY);
+}
+
 function sendUpdateAvailability(available) {
   Pebble.sendAppMessage({
     UpdateAvailable: available ? 1 : 0
@@ -354,20 +403,32 @@ function sendUpdateAvailability(available) {
   });
 }
 
-function checkForUpdate() {
+function checkForUpdate(trigger, force) {
+  var intervalSecs = getUpdateCheckInterval();
+  if (!force && intervalSecs === 0) {
+    localStorage.removeItem(UPDATE_CHECK_TIME_KEY);
+    localStorage.setItem(UPDATE_AVAILABLE_KEY, '0');
+    sendUpdateAvailability(false);
+    return;
+  }
+
+  if (!force && intervalSecs === UPDATE_CHECK_EVERY_WEATHER_FETCH &&
+      trigger !== 'weather') {
+    sendUpdateAvailability(cachedUpdateAvailable());
+    return;
+  }
+
   var now = Date.now();
   var lastCheck = parseInt(localStorage.getItem(UPDATE_CHECK_TIME_KEY), 10) || 0;
 
-  if (now - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
+  if (!force && intervalSecs > 0 &&
+      now - lastCheck < intervalSecs * 1000) {
     sendUpdateAvailability(cachedUpdateAvailable());
     return;
   }
   if (updateCheckInFlight) return;
 
   updateCheckInFlight = true;
-  // Cache the attempt time too, so a temporary GitHub failure does not cause
-  // every weather refresh to retry the update endpoint.
-  localStorage.setItem(UPDATE_CHECK_TIME_KEY, String(now));
   xhr(UPDATE_CHECK_URL, function(err, release) {
     updateCheckInFlight = false;
     if (err || !release || !release.tag_name) {
@@ -378,6 +439,9 @@ function checkForUpdate() {
     }
 
     var available = isNewerVersion(release.tag_name, currentVersion);
+    // Only a successful response starts the selected interval. A temporary
+    // GitHub failure can recover on a later app or weather event.
+    localStorage.setItem(UPDATE_CHECK_TIME_KEY, String(Date.now()));
     localStorage.setItem(UPDATE_AVAILABLE_KEY, available ? '1' : '0');
     console.log('update check: installed=' + currentVersion +
                 ' latest=' + release.tag_name +
@@ -403,6 +467,8 @@ function fetchWeather(lat, lon) {
     sendFetchError('invalid coordinates');
     return;
   }
+
+  checkForUpdate('weather', false);
 
   var units = getUnits();
   var tempUnit = units === 'metric' ? 'celsius' : 'fahrenheit';
@@ -690,7 +756,8 @@ function locateAndFetch() {
 
 Pebble.addEventListener('ready', function() {
   console.log('ClickyWeather PKJS ready');
-  checkForUpdate();
+  prepareUpdateCheckCache();
+  checkForUpdate('ready', false);
   // Watch persist storage can be reset by an update/reinstall while Clay's
   // saved settings survive. Restore the opt-in background interval without
   // requiring the user to reopen and save settings.
@@ -716,7 +783,6 @@ Pebble.addEventListener('appmessage', function(e) {
     localStorage.setItem('clockIs24h', payload.ClockIs24h ? '1' : '0');
   }
   if (payload.LastUpdated !== undefined) {
-    checkForUpdate();
     locateAndFetch();
   }
 });
@@ -737,7 +803,10 @@ function weatherRelevantSnapshot() {
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) return;
   var beforeSave = weatherRelevantSnapshot();
+  var previousUpdateInterval = getUpdateCheckInterval();
   var dict = clay.getSettings(e.response, false);
+  var checkForAppUpdate = dict.CheckForAppUpdate !== undefined &&
+    !!dict.CheckForAppUpdate.value;
   if (dict.Units !== undefined) {
     // Clay radiogroup values come back as strings ("0"/"1"), so coerce
     // before comparing. Prior versions used `=== 1` which always failed
@@ -758,6 +827,9 @@ Pebble.addEventListener('webviewclosed', function(e) {
   } else {
     localStorage.removeItem('locationOverride');
   }
+  if (dict.AppUpdateCheckInterval !== undefined) {
+    setUpdateCheckInterval(dict.AppUpdateCheckInterval.value);
+  }
   
   // Handle card toggle settings and build EnabledMask.
   // Each bit in EnabledMask represents a card's enabled state (bit 0 = Toggle0, etc).
@@ -772,11 +844,26 @@ Pebble.addEventListener('webviewclosed', function(e) {
   }
   
   var msg = clay.getSettings(e.response);
+  // The generic button uses a hidden one-shot Clay value. Reset it after
+  // serialization so an ordinary later save does not request another check.
+  clay.setSettings('CheckForAppUpdate', 0);
   msg.EnabledMask = enabledMask;
   var needsFetch = weatherRelevantSnapshot() !== beforeSave;
+  var updateIntervalChanged = getUpdateCheckInterval() !== previousUpdateInterval;
+  if (updateIntervalChanged || checkForAppUpdate) {
+    localStorage.removeItem(UPDATE_CHECK_TIME_KEY);
+  }
   function afterSave() {
-    if (needsFetch) locateAndFetch();
-    else console.log('settings saved without weather changes; fetch skipped');
+    if (checkForAppUpdate) {
+      checkForUpdate('manual', true);
+    } else if (updateIntervalChanged) {
+      checkForUpdate('settings', false);
+    }
+    if (needsFetch) {
+      locateAndFetch();
+    } else {
+      console.log('settings saved without weather changes; fetch skipped');
+    }
   }
   Pebble.sendAppMessage(msg, afterSave, afterSave);
 });

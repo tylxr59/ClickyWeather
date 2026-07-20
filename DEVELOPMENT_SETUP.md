@@ -22,7 +22,7 @@ Before tagging, add the release at the top of `CHANGELOG.md`, keep its version i
 sync with `package.json`, `package-lock.json`, and `src/pkjs/version.js`, then run:
 
 ```bash
-npm run release:notes -- 1.3.0
+npm run release:notes -- 1.3.1
 pebble clean
 npm run build
 ```

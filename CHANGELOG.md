@@ -5,6 +5,12 @@ shown once on the watch after an update and published as the matching GitHub
 Release notes. Keep the version synchronized with `package.json` and
 `src/pkjs/version.js`.
 
+## 1.3.1
+
+- Added configurable app update checks with Never, every weather refresh, timed intervals, and a Check Now button.
+- Fixed stale update notices after installing a different app version.
+- Improved recovery from temporary GitHub failures so one failed request does not suppress checks for the full selected interval.
+
 ## 1.3.0
 
 - Added detailed views for hourly temperature, rainfall, the five-day forecast, UV, and air quality; hold SELECT on a supported card to open one.

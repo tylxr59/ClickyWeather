@@ -116,6 +116,44 @@ module.exports = [
     "items": [
       {
         "type": "heading",
+        "defaultValue": "App Updates"
+      },
+      {
+        "type": "select",
+        "messageKey": "AppUpdateCheckInterval",
+        "label": "Check for new releases",
+        "description": "Automatic checks run on the phone when the app opens or weather refreshes; they do not wake the watch on their own. Checking with every weather refresh can increase network use.",
+        "defaultValue": "86400",
+        "options": [
+          { "label": "Never automatically", "value": "0" },
+          { "label": "Every weather refresh", "value": "-1" },
+          { "label": "At most every 6 hours", "value": "21600" },
+          { "label": "At most every 12 hours", "value": "43200" },
+          { "label": "At most every day", "value": "86400" },
+          { "label": "At most every 3 days", "value": "259200" },
+          { "label": "At most every week", "value": "604800" }
+        ]
+      },
+      {
+        "type": "toggle",
+        "id": "check-app-update-request",
+        "messageKey": "CheckForAppUpdate",
+        "defaultValue": false
+      },
+      {
+        "type": "button",
+        "id": "check-app-update-now",
+        "defaultValue": "Check for updates now",
+        "description": "Saves and closes settings, then checks GitHub immediately. A newer release will appear on the watch.",
+        "primary": false
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
         "defaultValue": "Location"
       },
       {
