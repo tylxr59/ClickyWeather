@@ -1,5 +1,6 @@
 # Build artifacts — regenerate with `pebble build`
 build/
+src/c/version_gen.h
 
 # JS dependencies — regenerate with `npm install`
 node_modules/

@@ -37,6 +37,16 @@ ClickyWeather is a carousel of focused weather cards:
 - **Alerts** — US weather alerts from the National Weather Service, with "NO DATA" outside supported regions
 - **Background refresh** — optional updates from every 30 minutes to every 24 hours while the app is closed
 - **Time formats** — match the watch clock or force 12/24-hour weather times
+- **Detailed forecasts** — hold SELECT on 6 Hours, Week Ahead, Precipitation, UV, or Air Quality for a deeper view
+- **Release notices** — the watch flags newer GitHub releases and shows their notes once after installation
+
+## Privacy
+
+Privacy is a core product requirement. ClickyWeather does not include analytics,
+telemetry, advertising identifiers, usage tracking, or user profiling. It sends
+location coordinates only to the weather and alert services needed to produce
+the forecast, and contacts GitHub at most once per day to check whether a newer
+release exists. No upstream analytics or tracking changes will be accepted.
 
 ## Screenshots
 
@@ -79,6 +89,8 @@ The **Main** card is always enabled and cannot be disabled—it is the anchor we
 
 - **UP/DOWN**: previous/next card
 - **SELECT**: refresh weather
+- **Hold SELECT**: open details on supported forecast cards
+- **BACK**: close a detail or release-notes screen; otherwise exit
 
 ## Requirements
 
@@ -121,7 +133,10 @@ The compiled package is written to `build/ClickyWeather.pbw`.
 
 ## Releases
 
-Pushing a version tag such as `v1.2.0` runs the GitHub Actions release workflow. The workflow verifies that the tag matches both `package.json` and `src/pkjs/version.js`, builds the PBW, uploads it as a workflow artifact, and attaches it to the matching GitHub Release.
+Every release has a newest-first entry in `CHANGELOG.md`. Its bullets appear once
+on the watch after the update and are also used as the GitHub Release notes.
+
+Pushing a version tag such as `v1.3.0` runs the GitHub Actions release workflow. The workflow verifies that the tag matches `CHANGELOG.md`, `package.json`, and `src/pkjs/version.js`, builds the PBW, uploads it as a workflow artifact, and attaches it to the matching GitHub Release. Because ClickyWeather is distributed outside the Pebble Appstore, the watch checks GitHub Releases daily and displays `UPDATE AVAILABLE` when a newer tagged PBW can be downloaded.
 
 To repair a missing or outdated PBW for an existing tag, open **Actions → Release PBW → Run workflow** and enter that tag. Manual runs check out the exact tag before rebuilding and replacing the release asset. Release current code with a new version and tag instead of reusing an older tag.
 
@@ -130,6 +145,7 @@ To repair a missing or outdated PBW for an existing tag, open **Actions → Rele
 ```text
 src/c/                 Pebble C app, weather cards, navigation, and UI
 src/pkjs/              PebbleKitJS weather requests, settings, and version check
+CHANGELOG.md            Release notes used by the watch and GitHub Releases
 resources/images/      Pebble menu icon
 screenshots/           Checked-in Pebble Time 2 screenshots
 package.json           Pebble metadata, scripts, and message keys

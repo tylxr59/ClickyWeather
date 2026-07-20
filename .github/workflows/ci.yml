@@ -59,6 +59,11 @@ jobs:
           npm run build --if-present
           if ! compgen -G "build/*.pbw" >/dev/null; then pebble build; fi
 
+      - name: Prepare release notes
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          npm run --silent release:notes -- "$VERSION" > release-notes.md
+
       - name: Upload PBW artifact
         uses: actions/upload-artifact@v4
         with:
@@ -70,6 +75,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          VERSION="${RELEASE_TAG#v}"
+          npm run --silent release:notes -- "$VERSION" > release-notes.md
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
-            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "Automated Pebble build."
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file release-notes.md
+          gh release edit "$RELEASE_TAG" --notes-file release-notes.md
           gh release upload "$RELEASE_TAG" build/*.pbw --clobber

@@ -1,10 +1,14 @@
 #include <pebble.h>
+#include <string.h>
 #include "theme.h"
 #include "nav.h"
 #include "weather_data.h"
 #include "comm.h"
 #include "anim.h"
 #include "settings.h"
+#include "detail_modal.h"
+#include "update_notes.h"
+#include "glance.h"
 #include "cards/cards.h"
 
 // Card-registry indices for the toggleable cards. Must match the
@@ -42,25 +46,67 @@ static void prv_handle_comm_update(void) {
 
 static Window *s_window;
 
+static DetailType prv_detail_for_current(void) {
+  const char *name = nav_current_name();
+  if (strcmp(name, "6 Hours") == 0) return DETAIL_HOURS;
+  if (strcmp(name, "Week Ahead") == 0) return DETAIL_WEEK;
+  if (strcmp(name, "Precipitation") == 0) return DETAIL_PRECIP;
+  if (strcmp(name, "UV") == 0) return DETAIL_UV;
+  if (strcmp(name, "Air Quality") == 0) return DETAIL_AQ;
+  return DETAIL_NONE;
+}
+
 static void prv_select_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  anim_kick();
+  if (detail_modal_is_active()) {
+    detail_modal_handle_select();
+    return;
+  }
   comm_request_refresh();
+}
+
+static void prv_select_long(ClickRecognizerRef r, void *ctx) {
+  (void)r; (void)ctx;
+  anim_kick();
+  if (detail_modal_is_active()) return;
+  DetailType type = prv_detail_for_current();
+  if (type != DETAIL_NONE) detail_modal_open(type);
 }
 
 static void prv_up_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  anim_kick();
+  if (detail_modal_is_active()) {
+    detail_modal_handle_up();
+    return;
+  }
   nav_prev();
 }
 
 static void prv_down_click(ClickRecognizerRef r, void *ctx) {
   (void)r; (void)ctx;
+  anim_kick();
+  if (detail_modal_is_active()) {
+    detail_modal_handle_down();
+    return;
+  }
   nav_next();
+}
+
+static void prv_back_click(ClickRecognizerRef r, void *ctx) {
+  (void)r; (void)ctx;
+  anim_kick();
+  if (detail_modal_handle_back()) return;
+  window_stack_pop_all(true);
 }
 
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click);
+  window_long_click_subscribe(BUTTON_ID_SELECT, 600, prv_select_long, NULL);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click);
+  window_single_click_subscribe(BUTTON_ID_BACK, prv_back_click);
 }
 
 static void prv_window_load(Window *window) {
@@ -79,10 +125,13 @@ static void prv_window_load(Window *window) {
   nav_register("Golden Hour", card_golden_hour_draw);
   prv_apply_card_visibility();
   nav_show_index(0);
+  detail_modal_init(window);
 
 }
 
 static void prv_window_unload(Window *window) {
+  (void)window;
+  detail_modal_deinit();
   nav_deinit();
 }
 
@@ -108,14 +157,18 @@ static void prv_init(void) {
   });
   window_stack_push(s_window, true);
 
+  anim_init();
+  update_notes_maybe_show();
+
   comm_set_update_callback(prv_handle_comm_update);
   comm_init();
-  anim_init();
 }
 
 static void prv_deinit(void) {
+  glance_update();
   anim_deinit();
   comm_deinit();
+  update_notes_deinit();
   window_destroy(s_window);
 }
 
@@ -123,6 +176,7 @@ int main(void) {
   if (launch_reason() == APP_LAUNCH_WAKEUP) {
     weather_data_init_mock();
     settings_load();
+    comm_load_cache();
     comm_background_init();
     app_event_loop();
     return 0;

@@ -2,6 +2,8 @@
 #include "weather_data.h"
 #include "theme.h"
 #include "settings.h"
+#include "anim.h"
+#include "glance.h"
 #include "cards/cards.h"
 #include <string.h>
 #include <stdlib.h>
@@ -33,7 +35,8 @@ static void prv_background_finish(bool success);
 // Bumped 107 -> 108 when uv_max, hourly wind/precip details, and the
 // fifth week-ahead day were added.
 // Bumped 108 -> 109 when update_available was added.
-#define PERSIST_KEY_CACHE 109
+// Bumped 109 -> 110 for wider sun times plus UV/AQI detail fields.
+#define PERSIST_KEY_CACHE 110
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -58,9 +61,6 @@ static void prv_set_refresh_state(bool in_progress, bool failed) {
   WeatherData *d = weather_data_get();
   d->refresh_in_progress = in_progress;
   d->update_failed = failed;
-  if (failed) {
-    d->last_updated = (uint32_t)time(NULL);
-  }
   if (s_update_cb) s_update_cb();
 }
 
@@ -99,9 +99,6 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     fetch_error_value = (t->value->int32 != 0);
     d->update_failed = fetch_error_value;
     d->refresh_in_progress = false;
-    if (fetch_error_value) {
-      d->last_updated = (uint32_t)time(NULL);
-    }
     got_anything = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_UpdateAvailable))) {
@@ -148,6 +145,14 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
       }
     }
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_AnimationsEnabled))) {
+    bool enabled = t->type == TUPLE_CSTRING
+      ? atoi(t->value->cstring) != 0
+      : t->value->int32 != 0;
+    settings_set_animations_enabled(enabled);
+    anim_kick();
+    if (s_update_cb) s_update_cb();
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_PollenLevel))) {
     d->pollen_level = (int)t->value->int32;
   }
@@ -167,6 +172,10 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   if ((t = dict_find(iter, MESSAGE_KEY_UV))) { d->uv = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_UVMax))) { d->uv_max = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_AQI))) { d->aqi = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_PM25))) { d->pm2_5 = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_PM10))) { d->pm10 = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_O3))) { d->o3 = t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_NO2))) { d->no2 = t->value->int32; }
   if ((t = dict_find(iter, MESSAGE_KEY_Sunrise))) {
     strncpy(d->sunrise, t->value->cstring, sizeof(d->sunrise) - 1);
     d->sunrise[sizeof(d->sunrise) - 1] = '\0';
@@ -176,7 +185,10 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     d->sunset[sizeof(d->sunset) - 1] = '\0';
   }
   if ((t = dict_find(iter, MESSAGE_KEY_RainAlertMinutes))) { d->rain_alert_min = t->value->int32; }
-  if ((t = dict_find(iter, MESSAGE_KEY_Units))) { d->units = (Units)t->value->int32; }
+  if ((t = dict_find(iter, MESSAGE_KEY_Units))) {
+    d->units = (Units)(t->type == TUPLE_CSTRING
+      ? atoi(t->value->cstring) : (int)t->value->int32);
+  }
   if ((t = dict_find(iter, MESSAGE_KEY_LastUpdated))) {
     // PKJS sends the unix-second timestamp of the fetch. Sentinel "1" from
     // our refresh-trigger doesn't carry useful time info; treat any value
@@ -226,6 +238,11 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     MESSAGE_KEY_Hour3Precip, MESSAGE_KEY_Hour4Precip,
     MESSAGE_KEY_Hour5Precip, MESSAGE_KEY_Hour6Precip
   };
+  uint32_t hour_uv_keys[6] = {
+    MESSAGE_KEY_Hour1Uv, MESSAGE_KEY_Hour2Uv,
+    MESSAGE_KEY_Hour3Uv, MESSAGE_KEY_Hour4Uv,
+    MESSAGE_KEY_Hour5Uv, MESSAGE_KEY_Hour6Uv
+  };
   for (int i = 0; i < 6; i++) {
     if ((t = dict_find(iter, hour_label_keys[i]))) {
       strncpy(d->hours_label[i], t->value->cstring,
@@ -251,6 +268,9 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     }
     if ((t = dict_find(iter, hour_precip_keys[i]))) {
       d->hours_precip_x10[i] = t->value->int32;
+    }
+    if ((t = dict_find(iter, hour_uv_keys[i]))) {
+      d->hours_uv[i] = (int8_t)t->value->int32;
     }
   }
 
@@ -329,6 +349,7 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     }
     d->valid = true;
     prv_save_cache();
+    if (!s_is_background_mode) anim_kick();
     if (s_update_cb) s_update_cb();
     if (s_is_background_mode) {
       prv_background_finish(!fetch_error_value);
@@ -361,6 +382,15 @@ static void prv_outbox_failed(DictionaryIterator *iter, AppMessageResult reason,
 }
 
 void comm_request_refresh(void) {
+  WeatherData *data = weather_data_get();
+  uint32_t now = (uint32_t)time(NULL);
+  if (!s_is_background_mode && data->valid && data->last_updated > 0 &&
+      now >= data->last_updated && now - data->last_updated < 60) {
+    data->refresh_in_progress = false;
+    data->update_failed = false;
+    if (s_update_cb) s_update_cb();
+    return;
+  }
   DictionaryIterator *iter;
   if (app_message_outbox_begin(&iter) != APP_MSG_OK) {
     prv_set_refresh_state(false, true);
@@ -389,6 +419,12 @@ void comm_set_update_callback(CommUpdateCb cb) {
 
 static void prv_initial_refresh(void *ctx) {
   (void)ctx;
+  WeatherData *data = weather_data_get();
+  uint32_t now = (uint32_t)time(NULL);
+  if (data->valid && data->last_updated > 0 && now >= data->last_updated &&
+      now - data->last_updated < 15 * 60) {
+    return;
+  }
   comm_request_refresh();
 }
 
@@ -404,6 +440,7 @@ void comm_load_cache(void) {
 static void prv_bg_exit(void *context) {
   (void)context;
   s_bg_exit_timer = NULL;
+  glance_update();
   app_message_deregister_callbacks();
   if (s_bg_window) {
     window_stack_remove(s_bg_window, false);

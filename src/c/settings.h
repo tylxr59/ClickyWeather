@@ -37,5 +37,10 @@ void settings_set_loop_nav(bool loop);
 int settings_get_background_interval(void);
 void settings_set_background_interval(int interval_secs);
 
+// Decorative motion is enabled by default but settles after a short idle
+// window. Disabling it makes the hero icon and rotating banners static.
+bool settings_get_animations_enabled(void);
+void settings_set_animations_enabled(bool enabled);
+
 bool settings_get_enabled(ToggleId id);
 void settings_set_enabled(ToggleId id, bool enabled);

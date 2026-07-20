@@ -46,8 +46,8 @@ typedef struct {
   int uv;              // 0..11+ — current UV (live)
   int uv_max;          // 0..11+ — today's forecast peak (for "PEAK n" subtitle)
   int aqi;             // US AQI 0..500
-  char sunrise[8];     // "6:14 AM"
-  char sunset[8];      // "7:45 PM"
+  char sunrise[10];    // "6:14 AM" / "10:30 PM"
+  char sunset[10];     // "7:45 PM" / "10:30 PM"
   int rain_alert_min;  // minutes until rain, -1 if none
   Units units;
   uint32_t last_updated; // unix seconds when last refresh was received
@@ -65,6 +65,7 @@ typedef struct {
   int  hours_wind[6];       // wind speed in selected unit (mph/kmh)
   char hours_wind_dir[6][4];// "NW", "ENE", etc.
   int  hours_precip_x10[6]; // precip amount, tenths of in/mm (5 = 0.5)
+  int8_t hours_uv[6];        // UV index for +1h..+6h; -1 = unknown
 
   // Phase 10B: Week Ahead card. Day 0 = today, day 4 = today+4.
   // Day 0's high/low duplicate `high`/`low` above but are kept here
@@ -101,6 +102,12 @@ typedef struct {
   // -1 means "unknown / not covered" — the
   // air quality card should skip the pollen badge in that case.
   int pollen_level;
+
+  // Pollutant concentrations in µg/m³ for the Air Quality detail view.
+  int pm2_5;
+  int pm10;
+  int o3;
+  int no2;
 
   // Weather alerts. alert_active is true when an alert is in effect.
   // alert_category identifies the type. ALERT_CAT_UNKNOWN (-1) means

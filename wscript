@@ -1,3 +1,6 @@
+import json
+import re
+
 #
 # This file is the default set of rules to compile a Pebble application.
 #
@@ -5,6 +8,59 @@
 #
 top = '.'
 out = 'build'
+
+
+def _c_escape(value):
+    return (value.replace('\\', '\\\\')
+                 .replace('"', '\\"')
+                 .replace('\n', '\\n')
+                 .replace('\r', '')
+                 .replace('\t', ' '))
+
+
+def generate_version_header(ctx):
+    """Generate the on-watch release notes from CHANGELOG.md."""
+    changelog = ctx.path.find_node('CHANGELOG.md')
+    if not changelog:
+        ctx.fatal('CHANGELOG.md is required for release notes')
+
+    text = changelog.read()
+    match = re.search(
+        r'(?m)^##\s+(\d+)\.(\d+)\.(\d+)[^\n]*\n(.*?)(?=^##\s|\Z)',
+        text, re.S)
+    if not match:
+        ctx.fatal('CHANGELOG.md has no semantic-version release entry')
+
+    major, minor, patch = [int(value) for value in match.group(1, 2, 3)]
+    label = '%d.%d.%d' % (major, minor, patch)
+    bullets = []
+    for line in match.group(4).splitlines():
+        line = line.strip()
+        if line.startswith('-'):
+            bullets.append(line[1:].strip())
+    if not bullets:
+        ctx.fatal('CHANGELOG.md %s has no release-note bullets' % label)
+
+    versions = re.findall(r'(?m)^##\s+(\d+)\.(\d+)\.(\d+)', text)
+    if len(versions) >= 2:
+        newest = tuple(int(value) for value in versions[0])
+        previous = tuple(int(value) for value in versions[1])
+        if newest <= previous:
+            ctx.fatal('CHANGELOG.md versions must be newest-first')
+
+    package = ctx.path.find_node('package.json')
+    package_version = json.loads(package.read()).get('version', '')
+    if package_version != label:
+        ctx.fatal('package.json version (%s) must match CHANGELOG.md (%s)'
+                  % (package_version, label))
+
+    code = major * 10000 + minor * 100 + patch
+    ctx.path.make_node('src/c/version_gen.h').write(
+        '#pragma once\n'
+        '// Generated from CHANGELOG.md by wscript. Do not edit.\n'
+        '#define APP_VERSION_CODE %d\n' % code +
+        '#define APP_VERSION_LABEL "%s"\n' % _c_escape(label) +
+        '#define APP_UPDATE_NOTES "%s"\n' % _c_escape('\n'.join(bullets)))
 
 
 def options(ctx):
@@ -23,6 +79,7 @@ def configure(ctx):
 
 def build(ctx):
     ctx.load('pebble_sdk')
+    generate_version_header(ctx)
 
     binaries = []
 

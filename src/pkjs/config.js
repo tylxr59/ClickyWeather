@@ -34,6 +34,13 @@ module.exports = [
           { "label": "12-hour (2 PM)", "value": "1" },
           { "label": "24-hour (14:00)", "value": "2" }
         ]
+      },
+      {
+        "type": "toggle",
+        "messageKey": "AnimationsEnabled",
+        "label": "Animations",
+        "description": "Animate briefly after activity, then settle to save battery.",
+        "defaultValue": true
       }
     ]
   },

@@ -32,8 +32,10 @@ void card_uv_draw(GContext *ctx, GRect bounds) {
   graphics_context_set_fill_color(ctx, theme_muted());
   graphics_fill_radial(ctx, arc_box, GOvalScaleModeFitCircle, thickness,
                        DEG_TO_TRIGANGLE(-90), DEG_TO_TRIGANGLE(90));
-  // Foreground proportion: uv 0..11 over 180°.
-  int uv_capped = d->uv > 11 ? 11 : d->uv;
+  bool uv_unknown = d->uv < 0;
+  int uv = uv_unknown ? 0 : d->uv;
+  // Foreground proportion: uv 0..11 over 180°; unknown leaves it empty.
+  int uv_capped = uv > 11 ? 11 : uv;
   int sweep_deg = (uv_capped * 180) / 11;
   graphics_context_set_fill_color(ctx, theme_accent_orange());
   graphics_fill_radial(ctx, arc_box, GOvalScaleModeFitCircle, thickness,
@@ -41,15 +43,17 @@ void card_uv_draw(GContext *ctx, GRect bounds) {
                        DEG_TO_TRIGANGLE(-90 + sweep_deg));
 
   // Big number inside.
-  char buf[8]; snprintf(buf, sizeof(buf), "%d", d->uv);
+  char buf[8];
+  snprintf(buf, sizeof(buf), uv_unknown ? "?" : "%d", uv);
   graphics_context_set_text_color(ctx, theme_fg());
   graphics_draw_text(ctx, buf,
-      fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS),
+      fonts_get_system_font(uv_unknown ? FONT_KEY_BITHAM_42_BOLD
+                                       : FONT_KEY_LECO_42_NUMBERS),
       GRect(c.x - radius, c.y - 32, radius*2, 50),
       GTextOverflowModeFill, GTextAlignmentCenter, NULL);
 
   // Label below.
-  graphics_draw_text(ctx, uv_label(d->uv),
+  graphics_draw_text(ctx, uv_unknown ? "UNKNOWN" : uv_label(uv),
       fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
       GRect(ox, c.y + 18, W, 24),
       GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);

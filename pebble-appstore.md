@@ -21,6 +21,11 @@ Features:
 - Precipitation, UV, air quality, sunrise, sunset, moon phase, and golden hour cards
 - US National Weather Service alerts
 - Configurable card selection, units, time format, theme, and background updates
+- Detailed forecast views opened with a long SELECT press
+- GitHub release availability notices and one-time on-watch release notes
 - Button-first navigation designed for Pebble Time 2 and Pebble Round 2
+
+Privacy: ClickyWeather contains no analytics, telemetry, advertising identifiers,
+usage tracking, or profiling.
 
 Requires a paired phone with location access and internet connectivity for weather updates.
