@@ -1,10 +1,5 @@
 # Changelog
 
-The newest release must be the first `## x.y.z` entry. Its bullet points are
-shown once on the watch after an update and published as the matching GitHub
-Release notes. Keep the version synchronized with `package.json` and
-`src/pkjs/version.js`.
-
 ## 1.4.0
 
 - Fixed location, precipitation-unit, air-quality, pollen, and weather-alert failure handling so the watch no longer presents fallback or stale values as current conditions.
