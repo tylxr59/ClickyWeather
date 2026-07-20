@@ -85,10 +85,11 @@ void card_main_draw(GContext *ctx, GRect bounds) {
 
   // Wind (left column). Speed unit follows the user's selected system.
   icon_draw_wind(ctx, GPoint(ox + W/4, oy + row_y + 8), 22, theme_fg());
-  char wind_buf[16];
+  char wind_buf[24];
   const char *wind_unit = (d->units == UNITS_METRIC) ? "KMH" : "MPH";
-  snprintf(wind_buf, sizeof(wind_buf), "%d%s %s",
-           d->wind_speed, wind_unit, d->wind_dir);
+  if (d->wind_speed < 0) snprintf(wind_buf, sizeof(wind_buf), "WIND --");
+  else snprintf(wind_buf, sizeof(wind_buf), "%d%s %s",
+                d->wind_speed, wind_unit, d->wind_dir);
   graphics_context_set_text_color(ctx, theme_fg());
   graphics_draw_text(ctx, wind_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
@@ -99,11 +100,13 @@ void card_main_draw(GContext *ctx, GRect bounds) {
   // Humidity / dew point (right column). User can toggle which one
   // appears via the Clay "Show dew point" switch.
   icon_draw_droplet(ctx, GPoint(ox + W*3/4, oy + row_y + 8), 18, theme_accent_blue());
-  char hum_buf[12];
+  char hum_buf[20];
   if (d->use_dew_point) {
-    snprintf(hum_buf, sizeof(hum_buf), "DEW %d°", d->dew_point);
+    if (d->dew_point < 0) snprintf(hum_buf, sizeof(hum_buf), "DEW --");
+    else snprintf(hum_buf, sizeof(hum_buf), "DEW %d°", d->dew_point);
   } else {
-    snprintf(hum_buf, sizeof(hum_buf), "HUM %d%%", d->humidity);
+    if (d->humidity < 0) snprintf(hum_buf, sizeof(hum_buf), "HUM --");
+    else snprintf(hum_buf, sizeof(hum_buf), "HUM %d%%", d->humidity);
   }
   graphics_draw_text(ctx, hum_buf,
                      fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
@@ -146,7 +149,7 @@ void card_main_draw(GContext *ctx, GRect bounds) {
 
   // Rotating status banner (rain ⇄ updated).
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
-                      d->update_failed,
+                      d->fetch_error,
                       d->refresh_in_progress,
                       d->update_available,
                       anim_get_frame());

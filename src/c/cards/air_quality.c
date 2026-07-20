@@ -12,6 +12,7 @@
 // for the gauge sweep and the hero number so the value's severity is
 // communicated by color even at a glance.
 static GColor aqi_category_color(int aqi) {
+  if (aqi < 0)     return theme_secondary();
   if (aqi <= 50)   return GColorIslamicGreen;       // GOOD
   if (aqi <= 100)  return theme_accent_orange();    // MODERATE (yellow)
   if (aqi <= 150)  return GColorOrange;             // UNHEALTHY FOR SENSITIVE
@@ -81,7 +82,8 @@ void card_air_quality_draw(GContext *ctx, GRect bounds) {
                        DEG_TO_TRIGANGLE(-90 + sweep_deg));
 
   // Big AQI number inside, colored by category.
-  char buf[8]; snprintf(buf, sizeof(buf), "%d", d->aqi);
+  char buf[8];
+  snprintf(buf, sizeof(buf), d->aqi < 0 ? "?" : "%d", d->aqi);
   graphics_context_set_text_color(ctx, cat);
   graphics_draw_text(ctx, buf,
       fonts_get_system_font(FONT_KEY_LECO_42_NUMBERS),
@@ -116,7 +118,7 @@ void card_air_quality_draw(GContext *ctx, GRect bounds) {
 
   (void)H;
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
-                      d->update_failed,
+                      d->fetch_error,
                       d->refresh_in_progress,
                       d->update_available,
                       anim_get_frame());

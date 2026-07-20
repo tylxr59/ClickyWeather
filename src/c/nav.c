@@ -1,6 +1,7 @@
 #include "nav.h"
 #include "theme.h"
 #include "settings.h"
+#include "weather_data.h"
 
 static Card s_cards[NAV_MAX_CARDS];
 static bool s_enabled[NAV_MAX_CARDS];
@@ -32,6 +33,39 @@ static int  s_anim_to_idx = 0;
 static int  s_anim_dir = 0;          // +1 = next, -1 = prev
 static uint64_t s_anim_start_ms = 0;
 static AppTimer *s_anim_timer = NULL;
+
+static void prv_draw_empty_state(GContext *ctx, GRect bounds) {
+  WeatherData *data = weather_data_get();
+  const char *title = "NO WEATHER YET";
+  const char *detail = "PRESS SELECT TO LOAD";
+  if (data->refresh_in_progress) {
+    title = "LOADING WEATHER";
+    detail = "WAITING FOR PHONE";
+  } else if (data->fetch_error == FETCH_ERROR_LOCATION) {
+    title = "LOCATION ERROR";
+    detail = "CHECK PHONE SETTINGS";
+  } else if (data->fetch_error == FETCH_ERROR_TIMEOUT) {
+    title = "PHONE TIMEOUT";
+    detail = "PRESS SELECT TO RETRY";
+  } else if (data->fetch_error != FETCH_ERROR_NONE) {
+    title = "WEATHER ERROR";
+    detail = "PRESS SELECT TO RETRY";
+  }
+
+  int center_y = bounds.origin.y + bounds.size.h / 2;
+  graphics_context_set_text_color(ctx,
+      data->fetch_error == FETCH_ERROR_NONE ? theme_fg()
+                                            : theme_accent_orange());
+  graphics_draw_text(ctx, title,
+      fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
+      GRect(bounds.origin.x + 8, center_y - 30, bounds.size.w - 16, 32),
+      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  graphics_context_set_text_color(ctx, theme_secondary());
+  graphics_draw_text(ctx, detail,
+      fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+      GRect(bounds.origin.x + 8, center_y + 4, bounds.size.w - 16, 20),
+      GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+}
 
 static uint64_t prv_now_ms(void) {
   time_t s; uint16_t ms;
@@ -82,6 +116,11 @@ static void card_layer_update(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   graphics_context_set_fill_color(ctx, theme_bg());
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+  if (!weather_data_get()->valid) {
+    prv_draw_empty_state(ctx, bounds);
+    return;
+  }
 
   if (s_anim_active) {
     // Eased progress (ease-out quadratic): visible motion is fast at

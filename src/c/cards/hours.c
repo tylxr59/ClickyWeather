@@ -34,11 +34,11 @@ static bool fmt_precip(const WeatherData *d, int i, char *buf, size_t n) {
     buf[0] = '\0';
     return false;
   }
+  int x = d->hours_precip_x10[i];
   if (d->units == UNITS_METRIC) {
-    int mm = (d->hours_precip_x10[i] + 9) / 10;
-    snprintf(buf, n, "%dmm", mm);
+    if (x % 10 == 0) snprintf(buf, n, "%dmm", x / 10);
+    else snprintf(buf, n, "%d.%dmm", x / 10, x % 10);
   } else {
-    int x = d->hours_precip_x10[i];
     snprintf(buf, n, "%d.%d\"", x / 10, x % 10);
   }
   return true;
@@ -152,7 +152,7 @@ void card_hours_draw(GContext *ctx, GRect bounds) {
   }
 
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
-                      d->update_failed,
+                      d->fetch_error,
                       d->refresh_in_progress,
                       d->update_available,
                       anim_get_frame());

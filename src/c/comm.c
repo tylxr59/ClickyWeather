@@ -13,15 +13,23 @@ static CommUpdateCb s_update_cb = NULL;
 static int s_bg_fail_count = 0;
 static AppTimer *s_bg_timeout_timer = NULL;
 static AppTimer *s_bg_exit_timer = NULL;
+static AppTimer *s_refresh_timeout_timer = NULL;
+static AppTimer *s_settings_refresh_timer = NULL;
 static bool s_is_background_mode = false;
 static WakeupId s_wakeup_id = -1;
 static Window *s_bg_window = NULL;
+static uint32_t s_request_seq = 0;
+static uint32_t s_active_request_seq = 0;
+static bool s_force_refresh_context = true;
 
 #define PERSIST_KEY_WAKEUP_ID 300
 #define BG_MAX_BACKOFF_MINUTES 240
+#define REFRESH_TIMEOUT_MS 35000
 
 static void prv_reschedule_wakeup(bool success);
 static void prv_background_finish(bool success);
+static void prv_request_refresh(bool force);
+static void prv_initial_refresh(void *ctx);
 
 // Bumped from 100 -> 101 when last_updated was added to WeatherData,
 // to avoid loading a stale-layout blob from older app versions.
@@ -36,7 +44,9 @@ static void prv_background_finish(bool success);
 // fifth week-ahead day were added.
 // Bumped 108 -> 109 when update_available was added.
 // Bumped 109 -> 110 for wider sun times plus UV/AQI detail fields.
-#define PERSIST_KEY_CACHE 110
+// Bumped 110 -> 111 when refresh errors became a typed enum.
+#define PERSIST_KEY_CACHE 111
+#define PERSIST_KEY_CACHE_PREVIOUS 110
 
 static void prv_save_cache(void) {
   WeatherData *d = weather_data_get();
@@ -49,28 +59,45 @@ static void prv_load_cache(void) {
   if (persist_exists(PERSIST_KEY_CACHE)) {
     WeatherData *d = weather_data_get();
     persist_read_data(PERSIST_KEY_CACHE, d, sizeof(WeatherData));
-    // Clear alert state on startup to prevent stale alerts from displaying.
-    // Fresh alerts will be fetched and sent by PKJS immediately after.
-    d->alert_active = false;
-    d->alert_category = ALERT_CAT_NONE;
+    // Keep the last verified alert result with the cached update timestamp.
+    // A new response always replaces it with active, clear, or unavailable.
     d->refresh_in_progress = false;
+    d->fetch_error = FETCH_ERROR_NONE;
+  } else if (persist_exists(PERSIST_KEY_CACHE_PREVIOUS)) {
+    persist_delete(PERSIST_KEY_CACHE_PREVIOUS);
   }
 }
 
-static void prv_set_refresh_state(bool in_progress, bool failed) {
+static void prv_cancel_refresh_timeout(void) {
+  if (s_refresh_timeout_timer) {
+    app_timer_cancel(s_refresh_timeout_timer);
+    s_refresh_timeout_timer = NULL;
+  }
+}
+
+static void prv_set_refresh_state(bool in_progress, FetchError error) {
   WeatherData *d = weather_data_get();
   d->refresh_in_progress = in_progress;
-  d->update_failed = failed;
+  d->fetch_error = error;
   if (s_update_cb) s_update_cb();
 }
 
 static void prv_inbox_received(DictionaryIterator *iter, void *context) {
   WeatherData *d = weather_data_get();
   bool got_anything = false;
-  bool fetch_error_seen = false;
-  bool fetch_error_value = false;
+  int fetch_error_value = FETCH_ERROR_NONE;
 
   Tuple *t;
+
+  Tuple *response_seq = dict_find(iter, MESSAGE_KEY_ResponseSeq);
+  if (response_seq) {
+    uint32_t seq = response_seq->value->uint32;
+    if (s_active_request_seq == 0 || seq != s_active_request_seq) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "Ignoring stale response %lu",
+              (unsigned long)seq);
+      return;
+    }
+  }
 
   if ((t = dict_find(iter, MESSAGE_KEY_Theme))) {
     // Clay radiogroup with string values delivers as TUPLE_CSTRING; older
@@ -95,11 +122,11 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     if (s_update_cb) s_update_cb();
   }
   if ((t = dict_find(iter, MESSAGE_KEY_FetchError))) {
-    fetch_error_seen = true;
-    fetch_error_value = (t->value->int32 != 0);
-    d->update_failed = fetch_error_value;
-    d->refresh_in_progress = false;
-    got_anything = true;
+    fetch_error_value = (int)t->value->int32;
+    if (fetch_error_value < FETCH_ERROR_NONE ||
+        fetch_error_value > FETCH_ERROR_TIMEOUT) {
+      fetch_error_value = FETCH_ERROR_NETWORK;
+    }
   }
   if ((t = dict_find(iter, MESSAGE_KEY_UpdateAvailable))) {
     d->update_available = (t->value->int32 != 0);
@@ -152,6 +179,11 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     settings_set_animations_enabled(enabled);
     anim_kick();
     if (s_update_cb) s_update_cb();
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_RefreshWeather)) &&
+      t->value->int32 != 0 && !s_settings_refresh_timer) {
+    s_settings_refresh_timer = app_timer_register(
+        100, prv_initial_refresh, &s_force_refresh_context);
   }
   if ((t = dict_find(iter, MESSAGE_KEY_PollenLevel))) {
     d->pollen_level = (int)t->value->int32;
@@ -342,24 +374,36 @@ static void prv_inbox_received(DictionaryIterator *iter, void *context) {
     d->blue_pm[sizeof(d->blue_pm) - 1] = '\0';
   }
 
-  if (got_anything) {
+  if (fetch_error_value != FETCH_ERROR_NONE) {
+    prv_cancel_refresh_timeout();
+    s_active_request_seq = 0;
     d->refresh_in_progress = false;
-    if (!fetch_error_seen || !fetch_error_value) {
-      d->update_failed = false;
-    }
+    d->fetch_error = (FetchError)fetch_error_value;
+    if (s_update_cb) s_update_cb();
+    if (s_is_background_mode) prv_background_finish(false);
+    return;
+  }
+
+  if (got_anything) {
+    prv_cancel_refresh_timeout();
+    s_active_request_seq = 0;
+    d->refresh_in_progress = false;
+    d->fetch_error = FETCH_ERROR_NONE;
     d->valid = true;
     prv_save_cache();
     if (!s_is_background_mode) anim_kick();
     if (s_update_cb) s_update_cb();
     if (s_is_background_mode) {
-      prv_background_finish(!fetch_error_value);
+      prv_background_finish(true);
     }
   }
 }
 
 static void prv_inbox_dropped(AppMessageResult reason, void *context) {
   APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage dropped: %d", (int)reason);
-  prv_set_refresh_state(false, true);
+  prv_cancel_refresh_timeout();
+  s_active_request_seq = 0;
+  prv_set_refresh_state(false, FETCH_ERROR_NETWORK);
   if (s_is_background_mode) {
     prv_background_finish(false);
   }
@@ -375,42 +419,68 @@ static void prv_outbox_failed(DictionaryIterator *iter, AppMessageResult reason,
   (void)iter;
   (void)context;
   APP_LOG(APP_LOG_LEVEL_WARNING, "AppMessage send failed: %d", (int)reason);
-  prv_set_refresh_state(false, true);
+  prv_cancel_refresh_timeout();
+  s_active_request_seq = 0;
+  prv_set_refresh_state(false, FETCH_ERROR_NETWORK);
   if (s_is_background_mode) {
     prv_background_finish(false);
   }
 }
 
-void comm_request_refresh(void) {
+static void prv_refresh_timeout(void *context) {
+  (void)context;
+  s_refresh_timeout_timer = NULL;
+  s_active_request_seq = 0;
+  prv_set_refresh_state(false, FETCH_ERROR_TIMEOUT);
+  if (s_is_background_mode) prv_background_finish(false);
+}
+
+static void prv_request_refresh(bool force) {
   WeatherData *data = weather_data_get();
+  if (data->refresh_in_progress) return;
   uint32_t now = (uint32_t)time(NULL);
-  if (!s_is_background_mode && data->valid && data->last_updated > 0 &&
+  if (!force && !s_is_background_mode &&
+      data->fetch_error == FETCH_ERROR_NONE &&
+      data->valid && data->last_updated > 0 &&
       now >= data->last_updated && now - data->last_updated < 60) {
     data->refresh_in_progress = false;
-    data->update_failed = false;
+    data->fetch_error = FETCH_ERROR_NONE;
     if (s_update_cb) s_update_cb();
     return;
   }
   DictionaryIterator *iter;
   if (app_message_outbox_begin(&iter) != APP_MSG_OK) {
-    prv_set_refresh_state(false, true);
+    prv_set_refresh_state(false, FETCH_ERROR_NETWORK);
     if (s_is_background_mode) {
       prv_background_finish(false);
     }
     return;
   }
+  s_request_seq++;
+  if (s_request_seq == 0) s_request_seq++;
+  s_active_request_seq = s_request_seq;
   // Send a sentinel key to trigger PKJS fetch.
   dict_write_uint8(iter, MESSAGE_KEY_LastUpdated, 1);
+  dict_write_uint32(iter, MESSAGE_KEY_RequestSeq, s_active_request_seq);
   dict_write_uint8(iter, MESSAGE_KEY_ClockIs24h,
                    clock_is_24h_style() ? 1 : 0);
   dict_write_end(iter);
-  prv_set_refresh_state(true, false);
+  prv_set_refresh_state(true, FETCH_ERROR_NONE);
   if (app_message_outbox_send() != APP_MSG_OK) {
-    prv_set_refresh_state(false, true);
+    s_active_request_seq = 0;
+    prv_set_refresh_state(false, FETCH_ERROR_NETWORK);
     if (s_is_background_mode) {
       prv_background_finish(false);
     }
+    return;
   }
+  prv_cancel_refresh_timeout();
+  s_refresh_timeout_timer = app_timer_register(
+      REFRESH_TIMEOUT_MS, prv_refresh_timeout, NULL);
+}
+
+void comm_request_refresh(void) {
+  prv_request_refresh(false);
 }
 
 void comm_set_update_callback(CommUpdateCb cb) {
@@ -418,20 +488,21 @@ void comm_set_update_callback(CommUpdateCb cb) {
 }
 
 static void prv_initial_refresh(void *ctx) {
-  (void)ctx;
+  bool force = ctx != NULL;
+  if (force) s_settings_refresh_timer = NULL;
   WeatherData *data = weather_data_get();
   uint32_t now = (uint32_t)time(NULL);
-  if (data->valid && data->last_updated > 0 && now >= data->last_updated &&
+  if (!force && data->valid && data->last_updated > 0 && now >= data->last_updated &&
       now - data->last_updated < 15 * 60) {
     return;
   }
-  comm_request_refresh();
+  prv_request_refresh(force);
 }
 
 void comm_load_cache(void) {
   prv_load_cache();
   // Trigger redraw if cache was loaded so the screen reconciles immediately.
-  // This prevents the imperial mock flash for metric users.
+  // This keeps the last verified state visible while a refresh is pending.
   if (s_update_cb && weather_data_get()->valid) {
     s_update_cb();
   }
@@ -452,6 +523,8 @@ static void prv_bg_exit(void *context) {
 static void prv_background_finish(bool success) {
   if (!s_is_background_mode) return;
   s_is_background_mode = false;
+  prv_cancel_refresh_timeout();
+  s_active_request_seq = 0;
   if (s_bg_timeout_timer) {
     app_timer_cancel(s_bg_timeout_timer);
     s_bg_timeout_timer = NULL;
@@ -465,6 +538,7 @@ static void prv_background_finish(bool success) {
 static void prv_bg_timeout(void *context) {
   (void)context;
   s_bg_timeout_timer = NULL;
+  prv_set_refresh_state(false, FETCH_ERROR_TIMEOUT);
   prv_background_finish(false);
 }
 
@@ -528,7 +602,7 @@ void comm_background_init(void) {
   app_message_register_outbox_failed(prv_outbox_failed);
   app_message_open(2048, 256);
 
-  s_bg_timeout_timer = app_timer_register(28000, prv_bg_timeout, NULL);
+  s_bg_timeout_timer = app_timer_register(REFRESH_TIMEOUT_MS, prv_bg_timeout, NULL);
   comm_request_refresh();
 }
 
@@ -564,5 +638,10 @@ void comm_init(void) {
 }
 
 void comm_deinit(void) {
+  prv_cancel_refresh_timeout();
+  if (s_settings_refresh_timer) {
+    app_timer_cancel(s_settings_refresh_timer);
+    s_settings_refresh_timer = NULL;
+  }
   app_message_deregister_callbacks();
 }

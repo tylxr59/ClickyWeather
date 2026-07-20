@@ -21,12 +21,12 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
@@ -38,8 +38,9 @@ jobs:
 
       - name: Install Pebble SDK
         run: |
-          uv tool install pebble-tool
-          pebble sdk install latest
+          uv tool install pebble-tool==5.0.39
+          pebble sdk install 4.17
+          pebble sdk activate 4.17
           pebble --version
 
       - name: Install dependencies
@@ -50,9 +51,16 @@ jobs:
           case "$RELEASE_TAG" in v*) ;; *) exit 1 ;; esac
           git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG"
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          LOCK_VERSION="$(node -p "require('./package-lock.json').version")"
+          LOCK_ROOT_VERSION="$(node -p "require('./package-lock.json').packages[''].version")"
           PKJS_VERSION="$(node -p "require('./src/pkjs/version')")"
+          test "$PACKAGE_VERSION" = "$LOCK_VERSION"
+          test "$PACKAGE_VERSION" = "$LOCK_ROOT_VERSION"
           test "$PACKAGE_VERSION" = "$PKJS_VERSION"
           test "$RELEASE_TAG" = "v$PACKAGE_VERSION"
+
+      - name: Test
+        run: npm test
 
       - name: Build PBW
         run: |
@@ -65,7 +73,7 @@ jobs:
           npm run --silent release:notes -- "$VERSION" > release-notes.md
 
       - name: Upload PBW artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: clickyweather-pbw
           path: build/*.pbw

@@ -18,7 +18,8 @@ static void prv_format_ago(uint32_t when, char *out, size_t n) {
 bool ui_draw_status_banner(GContext *ctx, GRect bounds,
                            StatusBannerMode mode,
                            int minutes_to_rain,
-                           uint32_t last_updated_secs) {
+                           uint32_t last_updated_secs,
+                           FetchError fetch_error) {
   if (mode == STATUS_BANNER_RAIN && minutes_to_rain < 0) return false;
 
   // Sit above page indicator. On round we keep clear of the bottom arc.
@@ -45,7 +46,13 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
 
   char buf[32];
   if (mode == STATUS_BANNER_FAILED) {
-    snprintf(buf, sizeof(buf), "UPDATE FAILED");
+    if (fetch_error == FETCH_ERROR_LOCATION) {
+      snprintf(buf, sizeof(buf), "LOCATION ERROR");
+    } else if (fetch_error == FETCH_ERROR_TIMEOUT) {
+      snprintf(buf, sizeof(buf), "PHONE TIMEOUT");
+    } else {
+      snprintf(buf, sizeof(buf), "WEATHER ERROR");
+    }
   } else if (mode == STATUS_BANNER_UPDATE_AVAILABLE) {
     snprintf(buf, sizeof(buf), "UPDATE AVAILABLE");
   } else if (mode == STATUS_BANNER_REFRESHING) {
@@ -67,7 +74,7 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
 bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
                          int minutes_to_rain,
                          uint32_t last_updated_secs,
-                         bool update_failed,
+                         FetchError fetch_error,
                          bool refresh_in_progress,
                          bool update_available,
                          uint32_t frame) {
@@ -75,7 +82,7 @@ bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
   StatusBannerMode mode;
   if (refresh_in_progress) {
     mode = STATUS_BANNER_REFRESHING;
-  } else if (update_failed) {
+  } else if (fetch_error != FETCH_ERROR_NONE) {
     mode = STATUS_BANNER_FAILED;
   } else if (has_rain && update_available) {
     // 100ms frames; rotate rain, app update, and weather age every 4s.
@@ -92,7 +99,7 @@ bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
     mode = STATUS_BANNER_UPDATED;
   }
   return ui_draw_status_banner(ctx, bounds, mode,
-                               minutes_to_rain, last_updated_secs);
+                               minutes_to_rain, last_updated_secs, fetch_error);
 }
 
 void ui_draw_header(GContext *ctx, GRect bounds, const char *text,

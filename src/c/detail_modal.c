@@ -297,6 +297,7 @@ static void prv_draw_uv(GContext *ctx) {
 }
 
 static GColor prv_aqi_color(int aqi) {
+  if (aqi < 0) return theme_secondary();
   if (aqi <= 50) return GColorIslamicGreen;
   if (aqi <= 100) return theme_accent_orange();
   if (aqi <= 150) return GColorOrange;
@@ -310,7 +311,8 @@ static void prv_draw_aq(GContext *ctx) {
   int top = prv_draw_chrome(ctx, "AIR DETAIL", icon_draw_pulse);
   GColor color = prv_aqi_color(data->aqi);
   char headline[28];
-  snprintf(headline, sizeof(headline), "AQI %d  %s", data->aqi, aqi_label(data->aqi));
+  if (data->aqi < 0) snprintf(headline, sizeof(headline), "AQI ?  UNKNOWN");
+  else snprintf(headline, sizeof(headline), "AQI %d  %s", data->aqi, aqi_label(data->aqi));
   graphics_context_set_text_color(ctx, color);
   graphics_draw_text(ctx, headline, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
                      GRect(0, top, s_screen_w, 22),
@@ -332,13 +334,14 @@ static void prv_draw_aq(GContext *ctx) {
     int bar_w = s_screen_w - bar_x - margin - 34;
     graphics_context_set_fill_color(ctx, theme_muted());
     graphics_fill_rect(ctx, GRect(bar_x, row_y + 7, bar_w, 8), 2, GCornersAll);
+    int bar_value = values[i] < 0 ? 0 : values[i];
     graphics_context_set_fill_color(ctx, color);
-    graphics_fill_rect(ctx, GRect(bar_x, row_y + 7, bar_w * values[i] / maximum, 8),
+    graphics_fill_rect(ctx, GRect(bar_x, row_y + 7, bar_w * bar_value / maximum, 8),
                        2, GCornersAll);
-    char value[8];
-    snprintf(value, sizeof(value), "%d", values[i]);
+    char value_text[8];
+    snprintf(value_text, sizeof(value_text), values[i] < 0 ? "--" : "%d", values[i]);
     graphics_context_set_text_color(ctx, theme_fg());
-    graphics_draw_text(ctx, value, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
+    graphics_draw_text(ctx, value_text, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
                        GRect(s_screen_w - margin - 32, row_y + 1, 32, 18),
                        GTextOverflowModeFill, GTextAlignmentRight, NULL);
   }

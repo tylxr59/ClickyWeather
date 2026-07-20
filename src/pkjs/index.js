@@ -5,7 +5,17 @@ var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
 var customClay = require('./custom-clay');
 var currentVersion = require('./version');
+var messageKeys = require('message_keys');
+var weatherUtils = require('./weather-utils');
 var clay = new Clay(clayConfig, customClay, { autoHandleEvents: false });
+
+var ALERT_CAT = weatherUtils.ALERT_CAT;
+var degToCompass = weatherUtils.degToCompass;
+var isNewerVersion = weatherUtils.isNewerVersion;
+var mapWeatherCode = weatherUtils.mapWeatherCode;
+var parseCoordinateOverride = weatherUtils.parseCoordinateOverride;
+var payloadValue = weatherUtils.payloadValue;
+var validCoordinates = weatherUtils.validCoordinates;
 
 var UPDATE_CHECK_URL =
   'https://api.github.com/repos/tylxr59/ClickyWeather/releases/latest';
@@ -16,35 +26,14 @@ var UPDATE_CHECK_TIME_KEY = 'updateCheckTime';
 var UPDATE_AVAILABLE_KEY = 'updateAvailable';
 var UPDATE_CHECK_VERSION_KEY = 'updateCheckInstalledVersion';
 var updateCheckInFlight = false;
-var fetchStartedAt = 0;
-var FETCH_IN_FLIGHT_MS = 20000;
+var activeWeatherSeq = null;
 
-function fetchDone() {
-  fetchStartedAt = 0;
-}
-
-var COND = {
-  SUNNY: 0, PARTLY_CLOUDY: 1, CLOUDY: 2, RAIN: 3, SNOW: 4, STORM: 5, FOG: 6
+var FETCH_ERROR = {
+  NONE: 0,
+  NETWORK: 1,
+  LOCATION: 2,
+  TIMEOUT: 3
 };
-
-// Map Open-Meteo WMO weather codes to our internal enum.
-function mapWeatherCode(code) {
-  if (code === 0) return COND.SUNNY;
-  if (code === 1 || code === 2) return COND.PARTLY_CLOUDY;
-  if (code === 3) return COND.CLOUDY;
-  if (code >= 45 && code <= 48) return COND.FOG;
-  if (code >= 51 && code <= 67) return COND.RAIN;
-  if (code >= 71 && code <= 77) return COND.SNOW;
-  if (code >= 80 && code <= 82) return COND.RAIN;
-  if (code >= 85 && code <= 86) return COND.SNOW;
-  if (code >= 95 && code <= 99) return COND.STORM;
-  return COND.PARTLY_CLOUDY;
-}
-
-function degToCompass(deg) {
-  var dirs = ['N','NE','E','SE','S','SW','W','NW'];
-  return dirs[Math.round(deg / 45) % 8];
-}
 
 function use24h() {
   var format = localStorage.getItem('timeFormat') || '0';
@@ -108,51 +97,6 @@ function isUS(lat, lon) {
   return conus || alaska || hawaii;
 }
 
-function validCoordinates(lat, lon) {
-  return isFinite(lat) && isFinite(lon) &&
-         lat >= -90 && lat <= 90 &&
-         lon >= -180 && lon <= 180;
-}
-
-function parseCoordinateOverride(value) {
-  if (!value) return null;
-  var parts = value.split(',');
-  if (parts.length !== 2) return null;
-  var lat = parseFloat(parts[0]);
-  var lon = parseFloat(parts[1]);
-  if (!validCoordinates(lat, lon)) return null;
-  return { lat: lat, lon: lon };
-}
-
-// Alert category enum values — must match AlertCategory in weather_data.h.
-var ALERT_CAT = {
-  NONE:    0,
-  WIND:    1,
-  HEAT:    2,
-  COLD:    3,
-  FLOOD:   4,
-  TORNADO: 5,
-  WINTER:  6,
-  OTHER:   7,
-  UNKNOWN: -1
-};
-
-// Map an NWS event string to an alert category integer.
-// Matching is case-insensitive substring check. Order matters: more-
-// specific patterns (e.g. "wind chill") must precede generic ones ("wind").
-function nwsEventToCategory(event) {
-  var e = (event || '').toLowerCase();
-  if (e.indexOf('tornado') >= 0 || e.indexOf('hurricane') >= 0 ||
-      e.indexOf('typhoon') >= 0) return ALERT_CAT.TORNADO;
-  if (e.indexOf('cold') >= 0 || e.indexOf('wind chill') >= 0 ||
-      e.indexOf('freeze') >= 0 || e.indexOf('frost') >= 0) return ALERT_CAT.COLD;
-  if (e.indexOf('wind') >= 0) return ALERT_CAT.WIND;
-  if (e.indexOf('heat') >= 0) return ALERT_CAT.HEAT;
-  if (e.indexOf('flood') >= 0) return ALERT_CAT.FLOOD;
-  if (e.indexOf('winter') >= 0 || e.indexOf('blizzard') >= 0 ||
-      e.indexOf('ice storm') >= 0 || e.indexOf('snow') >= 0) return ALERT_CAT.WINTER;
-  return ALERT_CAT.OTHER;
-}
 
 // Returns true when coordinates are within continental Europe + UK +
 // Scandinavia. Open-Meteo CAMS pollen data is reliable inside this box;
@@ -308,40 +252,34 @@ function computeGoldenHour(date, lat, lng, utcOffsetSec) {
 
 function xhr(url, cb) {
   var req = new XMLHttpRequest();
+  var finished = false;
+  var timer = setTimeout(function() {
+    if (finished) return;
+    finished = true;
+    try { req.abort(); } catch (e) {}
+    cb(new Error('xhr timeout'));
+  }, 15000);
+
+  function done(err, data) {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    cb(err, data);
+  }
+
   req.open('GET', url, true);
   req.timeout = 15000;
   req.onload = function() {
     if (req.status >= 200 && req.status < 300) {
-      try { cb(null, JSON.parse(req.responseText)); }
-      catch (e) { cb(e); }
+      try { done(null, JSON.parse(req.responseText)); }
+      catch (e) { done(e); }
     } else {
-      cb(new Error('HTTP ' + req.status));
+      done(new Error('HTTP ' + req.status));
     }
   };
-  req.onerror = function() { cb(new Error('xhr error')); };
-  req.ontimeout = function() { cb(new Error('xhr timeout')); };
+  req.onerror = function() { done(new Error('xhr error')); };
+  req.ontimeout = function() { done(new Error('xhr timeout')); };
   req.send();
-}
-
-function parseVersion(value) {
-  var match = String(value || '').match(/^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
-  if (!match) return null;
-  return [
-    parseInt(match[1], 10),
-    parseInt(match[2], 10),
-    parseInt(match[3], 10)
-  ];
-}
-
-function isNewerVersion(latest, current) {
-  var a = parseVersion(latest);
-  var b = parseVersion(current);
-  if (!a || !b) return false;
-  for (var i = 0; i < 3; i++) {
-    if (a[i] > b[i]) return true;
-    if (a[i] < b[i]) return false;
-  }
-  return false;
 }
 
 function cachedUpdateAvailable() {
@@ -450,77 +388,72 @@ function checkForUpdate(trigger, force) {
   });
 }
 
-function sendFetchError(reason) {
-  console.log('fetch failed: ' + reason);
-  Pebble.sendAppMessage({
-    FetchError: 1
-  }, function() {
-    console.log('fetch error sent');
-  }, function(e) {
-    console.log('fetch error send fail: ' + JSON.stringify(e));
-  });
-  fetchDone();
+function isActiveWeatherRequest(seq) {
+  return activeWeatherSeq === seq;
 }
 
-function fetchWeather(lat, lon) {
-  if (!validCoordinates(lat, lon)) {
-    sendFetchError('invalid coordinates');
-    return;
-  }
+function sendFetchError(reason, seq, code) {
+  if (!isActiveWeatherRequest(seq)) return;
+  console.log('fetch failed: ' + reason);
+  Pebble.sendAppMessage({
+    FetchError: code || FETCH_ERROR.NETWORK,
+    ResponseSeq: seq
+  }, function() {
+    if (isActiveWeatherRequest(seq)) activeWeatherSeq = null;
+    console.log('fetch error sent');
+  }, function(e) {
+    if (isActiveWeatherRequest(seq)) activeWeatherSeq = null;
+    console.log('fetch error send fail: ' + JSON.stringify(e));
+  });
+}
 
-  checkForUpdate('weather', false);
-
+function buildWeatherMessage(seq, lat, lon, data, aqd, alertResult) {
+  if (!isActiveWeatherRequest(seq)) return;
   var units = getUnits();
-  var tempUnit = units === 'metric' ? 'celsius' : 'fahrenheit';
-  var windUnit = units === 'metric' ? 'kmh' : 'mph';
-
-  var fc = 'https://api.open-meteo.com/v1/forecast' +
-    '?latitude=' + lat + '&longitude=' + lon +
-    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index' +
-    '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,precipitation,uv_index' +
-    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
-    '&temperature_unit=' + tempUnit +
-    '&wind_speed_unit=' + windUnit +
-    '&timezone=auto&forecast_days=5';
-
-  var aq = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
-    '?latitude=' + lat + '&longitude=' + lon +
-    // Always request pollen fields. CAMS covers Europe; outside that
-    // region the fields return null and pollen is hidden on the watch.
-    '&current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen' +
-    '&timezone=auto';
-
-  xhr(fc, function(err, data) {
-    if (err) { sendFetchError('forecast ' + err.message); return; }
-    xhr(aq, function(_e2, aqd) {
-      var msg = {};
-      try {
-        var cur = data.current || {};
-        var daily = data.daily || {};
-        var hourly = data.hourly || {};
+  var msg = {};
+  try {
+        var cur = data && data.current || {};
+        var daily = data && data.daily || {};
+        var hourly = data && data.hourly || {};
+        if (typeof cur.temperature_2m !== 'number') {
+          throw new Error('missing current temperature');
+        }
         msg.Temp = Math.round(cur.temperature_2m);
-        msg.FeelsLike = Math.round(cur.apparent_temperature);
-        msg.Humidity = Math.round(cur.relative_humidity_2m);
-        msg.DewPoint = Math.round(cur.dew_point_2m);
+        msg.FeelsLike = typeof cur.apparent_temperature === 'number'
+          ? Math.round(cur.apparent_temperature) : msg.Temp;
+        msg.Humidity = typeof cur.relative_humidity_2m === 'number'
+          ? Math.round(cur.relative_humidity_2m) : -1;
+        msg.DewPoint = typeof cur.dew_point_2m === 'number'
+          ? Math.round(cur.dew_point_2m) : -1;
         msg.UseDewPoint = getUseDewPoint() ? 1 : 0;
-        msg.Wind = Math.round(cur.wind_speed_10m);
+        msg.Wind = typeof cur.wind_speed_10m === 'number'
+          ? Math.round(cur.wind_speed_10m) : -1;
         msg.WindDir = degToCompass(cur.wind_direction_10m || 0);
         msg.WindGust = Math.round(cur.wind_gusts_10m || 0);
         msg.Condition = mapWeatherCode(cur.weather_code);
-        if (daily.temperature_2m_max && daily.temperature_2m_max.length) {
+        if (daily.temperature_2m_max && daily.temperature_2m_min &&
+            typeof daily.temperature_2m_max[0] === 'number' &&
+            typeof daily.temperature_2m_min[0] === 'number') {
           msg.High = Math.round(daily.temperature_2m_max[0]);
           msg.Low = Math.round(daily.temperature_2m_min[0]);
+        } else {
+          msg.High = msg.Temp;
+          msg.Low = msg.Temp;
         }
         if (daily.sunrise && daily.sunrise.length) {
           msg.Sunrise = fmtTime12(daily.sunrise[0]);
           msg.Sunset = fmtTime12(daily.sunset[0]);
+        } else {
+          msg.Sunrise = '';
+          msg.Sunset = '';
         }
         // UV semantics:
         //   msg.UV    — current UV (live gauge value)
         //   msg.UVMax — today's forecast peak (subtitle "PEAK n")
         // Fall back to daily peak if `current.uv_index` is missing on
         // older API responses, so we never regress to undefined.
-        var dailyMax = (daily.uv_index_max && daily.uv_index_max.length)
+        var dailyMax = (daily.uv_index_max &&
+                        typeof daily.uv_index_max[0] === 'number')
                        ? daily.uv_index_max[0] : null;
         msg.UV = -1;
         if (typeof cur.uv_index === 'number') {
@@ -528,9 +461,7 @@ function fetchWeather(lat, lon) {
         } else if (dailyMax !== null) {
           msg.UV = Math.round(dailyMax);
         }
-        if (dailyMax !== null) {
-          msg.UVMax = Math.round(dailyMax);
-        }
+        msg.UVMax = dailyMax !== null ? Math.round(dailyMax) : -1;
         var p = hourly.precipitation_probability || [];
         var times = hourly.time || [];
         // Find the index of the current hour in the hourly arrays so the
@@ -555,27 +486,16 @@ function fetchWeather(lat, lon) {
         for (var i = 0; i < 5; i++) {
           msg['Precip' + i] = Math.round(p[startIdx + i] || 0);
         }
-        // Precipitation amount for the current hour (mm×10 integer, always metric
-        // from Open-Meteo regardless of wind_speed_unit). C converts to
-        // tenths-of-inch for imperial display at render time.
+        // Normalize Open-Meteo's millimetres to tenths of the selected display
+        // unit before sending, keeping floats off the watch.
         var precipMm = (hourly.precipitation || [])[startIdx] || 0;
-        msg.PrecipAmount = Math.round(precipMm * 10);
-        if (aqd && aqd.current) {
-          msg.AQI = Math.round(aqd.current.us_aqi || 0);
-          msg.PM25 = Math.round(aqd.current.pm2_5 || 0);
-          msg.PM10 = Math.round(aqd.current.pm10 || 0);
-          msg.O3 = Math.round(aqd.current.ozone || 0);
-          msg.NO2 = Math.round(aqd.current.nitrogen_dioxide || 0);
-        }
+        msg.PrecipAmount = weatherUtils.precipMmToDisplayX10(precipMm, units);
         msg.Units = units === 'metric' ? 1 : 0;
         msg.LastUpdated = Math.floor(Date.now() / 1000);
         msg.FetchError = 0;
+        msg.ResponseSeq = seq;
         msg.UpdateAvailable = cachedUpdateAvailable() ? 1 : 0;
 
-        // Pollen — European CAMS strategy:
-        //   Europe   -> use Open-Meteo CAMS fields already in the AQ
-        //               response (free, no quota, zero extra requests).
-        //   Elsewhere -> PollenLevel is not set (watch shows no pollen data).
         // Phase 10A: Next 6 Hours (offsets +1h..+6h from current hour).
         var temps = hourly.temperature_2m || [];
         var codes = hourly.weather_code || [];
@@ -611,8 +531,8 @@ function fetchWeather(lat, lon) {
           // Wind speed in selected unit (mph/kmh), rounded to integer.
           msg['Hour' + hi + 'Wind']    = Math.round(hWind[idx] || 0);
           msg['Hour' + hi + 'WindDir'] = degToCompass(hWdir[idx] || 0);
-          // Precip amount as integer tenths of in/mm (avoids floats on watch).
-          msg['Hour' + hi + 'Precip']  = Math.round((hPrcp[idx] || 0) * 10);
+          msg['Hour' + hi + 'Precip'] = weatherUtils.precipMmToDisplayX10(
+            hPrcp[idx] || 0, units);
           msg['Hour' + hi + 'Uv'] = typeof hUv[idx] === 'number'
             ? Math.round(hUv[idx]) : -1;
         }
@@ -656,8 +576,9 @@ function fetchWeather(lat, lon) {
         msg.GoldPm = gh.GoldPm;
         msg.BluePm = gh.BluePm;
 
-        // Attempt Open-Meteo pollen for Europe. Outside CAMS coverage,
-        // PollenLevel is omitted and the watch hides the pollen badge.
+        // Always send explicit AQ and pollen sentinels so values from an older
+        // location or a partial request cannot appear current.
+        var pollenLevel = -1;
         if (isEurope(lat, lon) && aqd && aqd.current) {
           var aqc = aqd.current;
           var euUpi = pollenGrainsToUpi(
@@ -665,125 +586,213 @@ function fetchWeather(lat, lon) {
             aqc.ragweed_pollen, aqc.mugwort_pollen, aqc.olive_pollen
           );
           if (euUpi >= 0) {
-            msg.PollenLevel = euUpi;
+            pollenLevel = euUpi;
           }
         }
-
-        // Weather alerts:
-        //   US   → NWS free public API (chained XHR below)
-        //   Else → ALERT_CAT_UNKNOWN (-1), shown as "NO DATA"
-        if (isUS(lat, lon)) {
-          var nwsUrl = 'https://api.weather.gov/alerts/active?point=' +
-                       lat + '%2C' + lon +
-                       '&status=actual&message_type=alert';
-          xhr(nwsUrl, function(_enws, nwsd) {
-            try {
-              var features = nwsd && nwsd.features;
-              if (features && features.length > 0) {
-                var event = features[0].properties && features[0].properties.event;
-                msg.AlertActive   = 1;
-                msg.AlertCategory = nwsEventToCategory(event);
-              } else {
-                msg.AlertActive   = 0;
-                msg.AlertCategory = ALERT_CAT.NONE;
-              }
-            } catch (enws2) {
-              msg.AlertActive   = 0;
-              msg.AlertCategory = ALERT_CAT.NONE;
-            }
-            Pebble.sendAppMessage(msg,
-              function() {
-                localStorage.setItem('lastFetchAt', String(Date.now()));
-                fetchDone();
-                console.log('weather sent');
-              },
-              function(e) {
-                fetchDone();
-                console.log('send fail: ' + JSON.stringify(e));
-              }
-            );
-          });
-        } else {
-          // Elsewhere: no alert data available.
-          msg.AlertActive   = 0;
-          msg.AlertCategory = ALERT_CAT.UNKNOWN;
-          Pebble.sendAppMessage(msg,
-            function() {
-              localStorage.setItem('lastFetchAt', String(Date.now()));
-              fetchDone();
-              console.log('weather sent');
-            },
-            function(e) {
-              fetchDone();
-              console.log('send fail: ' + JSON.stringify(e));
-            }
-          );
+        var airFields = weatherUtils.airQualityFields(aqd, pollenLevel);
+        for (var airKey in airFields) {
+          if (airFields.hasOwnProperty(airKey)) msg[airKey] = airFields[airKey];
         }
-      } catch (e) {
-        sendFetchError('parse ' + e.message);
-        return;
-      }
-    });
-  });
+
+        msg.AlertActive = alertResult.active;
+        msg.AlertCategory = alertResult.category;
+
+        Pebble.sendAppMessage(msg, function() {
+          if (!isActiveWeatherRequest(seq)) return;
+          localStorage.setItem('lastFetchAt', String(Date.now()));
+          activeWeatherSeq = null;
+          console.log('weather sent');
+        }, function(e) {
+          if (isActiveWeatherRequest(seq)) activeWeatherSeq = null;
+          console.log('send fail: ' + JSON.stringify(e));
+        });
+  } catch (e) {
+    sendFetchError('parse ' + e.message, seq, FETCH_ERROR.NETWORK);
+  }
 }
 
-function locateAndFetch() {
-  if (Date.now() - fetchStartedAt < FETCH_IN_FLIGHT_MS) {
-    console.log('weather fetch already in flight, skipping duplicate');
+function fetchWeather(seq, lat, lon) {
+  if (!isActiveWeatherRequest(seq)) return;
+  if (!validCoordinates(lat, lon)) {
+    sendFetchError('invalid coordinates', seq, FETCH_ERROR.LOCATION);
     return;
   }
-  fetchStartedAt = Date.now();
-  var override = parseCoordinateOverride(localStorage.getItem('locationOverride'));
+
+  checkForUpdate('weather', false);
+
+  var units = getUnits();
+  var tempUnit = units === 'metric' ? 'celsius' : 'fahrenheit';
+  var windUnit = units === 'metric' ? 'kmh' : 'mph';
+  var fc = 'https://api.open-meteo.com/v1/forecast' +
+    '?latitude=' + lat + '&longitude=' + lon +
+    '&current=temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index' +
+    '&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,precipitation,uv_index' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max' +
+    '&temperature_unit=' + tempUnit + '&wind_speed_unit=' + windUnit +
+    '&timezone=auto&forecast_days=5';
+  var aq = 'https://air-quality-api.open-meteo.com/v1/air-quality' +
+    '?latitude=' + lat + '&longitude=' + lon +
+    '&current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,grass_pollen,birch_pollen,alder_pollen,ragweed_pollen,mugwort_pollen,olive_pollen' +
+    '&timezone=auto';
+
+  var pending = isUS(lat, lon) ? 3 : 2;
+  var forecastError = null;
+  var forecastData = null;
+  var airData = null;
+  var alertResult = { active: 0, category: ALERT_CAT.UNKNOWN };
+
+  function partDone() {
+    pending--;
+    if (pending !== 0 || !isActiveWeatherRequest(seq)) return;
+    if (forecastError) {
+      sendFetchError('forecast ' + forecastError.message, seq, FETCH_ERROR.NETWORK);
+      return;
+    }
+    buildWeatherMessage(seq, lat, lon, forecastData, airData, alertResult);
+  }
+
+  xhr(fc, function(err, data) {
+    forecastError = err;
+    forecastData = data;
+    partDone();
+  });
+  xhr(aq, function(err, data) {
+    if (!err) airData = data;
+    partDone();
+  });
+  if (isUS(lat, lon)) {
+    var nwsUrl = 'https://api.weather.gov/alerts/active?point=' +
+                 lat + '%2C' + lon + '&status=actual&message_type=alert';
+    xhr(nwsUrl, function(err, data) {
+      alertResult = weatherUtils.classifyNwsResponse(err, data);
+      partDone();
+    });
+  }
+}
+
+function locateAndFetch(seq) {
+  if (isActiveWeatherRequest(seq)) {
+    console.log('weather request already in flight, skipping duplicate');
+    return;
+  }
+  activeWeatherSeq = seq;
+  var overrideValue = localStorage.getItem('locationOverride');
+  var override = parseCoordinateOverride(overrideValue);
   if (override) {
-    fetchWeather(override.lat, override.lon);
+    fetchWeather(seq, override.lat, override.lon);
+    return;
+  }
+  if (overrideValue) {
+    sendFetchError('invalid location override', seq, FETCH_ERROR.LOCATION);
     return;
   }
   navigator.geolocation.getCurrentPosition(
     function(pos) {
+      if (!isActiveWeatherRequest(seq)) return;
       if (validCoordinates(pos.coords.latitude, pos.coords.longitude)) {
-        fetchWeather(pos.coords.latitude, pos.coords.longitude);
+        fetchWeather(seq, pos.coords.latitude, pos.coords.longitude);
       } else {
-        sendFetchError('invalid gps coordinates');
+        sendFetchError('invalid gps coordinates', seq, FETCH_ERROR.LOCATION);
       }
     },
     function(err) {
-      console.log('geo err: ' + err.message + ' — using fallback');
-      fetchWeather(37.7749, -122.4194);
+      sendFetchError('geolocation ' + err.message, seq, FETCH_ERROR.LOCATION);
     },
     { timeout: 15000, maximumAge: 600000 }
   );
 }
 
+function savedValue(saved, name) {
+  var value = saved[name];
+  if (value && value.value !== undefined) return value.value;
+  return value;
+}
+
+function savedBool(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
+}
+
+function restoreSavedSettings(done) {
+  try {
+    var saved = JSON.parse(localStorage.getItem('clay-settings') || '{}');
+    var msg = {};
+    var value;
+
+    value = savedValue(saved, 'Units');
+    if (value !== undefined) {
+      var metric = parseInt(value, 10) === 1;
+      localStorage.setItem('units', metric ? 'metric' : 'imperial');
+      msg.Units = metric ? 1 : 0;
+    }
+    value = savedValue(saved, 'UseDewPoint');
+    if (value !== undefined) {
+      localStorage.setItem('useDewPoint', savedBool(value) ? '1' : '0');
+      msg.UseDewPoint = savedBool(value) ? 1 : 0;
+    }
+    value = savedValue(saved, 'TimeFormat');
+    if (value !== undefined) {
+      localStorage.setItem('timeFormat', String(parseInt(value, 10) || 0));
+      msg.TimeFormat = parseInt(value, 10) || 0;
+    }
+    value = savedValue(saved, 'LocationOverride');
+    if (value) localStorage.setItem('locationOverride', String(value));
+    else localStorage.removeItem('locationOverride');
+
+    value = savedValue(saved, 'Theme');
+    if (value !== undefined) msg.Theme = parseInt(value, 10) || 0;
+    value = savedValue(saved, 'LoopNavigation');
+    if (value !== undefined) msg.LoopNavigation = savedBool(value) ? 1 : 0;
+    value = savedValue(saved, 'AnimationsEnabled');
+    if (value !== undefined) msg.AnimationsEnabled = savedBool(value) ? 1 : 0;
+    value = savedValue(saved, 'BackgroundUpdateInterval');
+    if (value !== undefined) {
+      msg.BackgroundUpdateInterval = parseInt(value, 10) || 0;
+    }
+    value = savedValue(saved, 'AppUpdateCheckInterval');
+    if (value !== undefined) setUpdateCheckInterval(value);
+
+    var enabledMask = (1 << 9) - 1;
+    var sawToggle = false;
+    for (var i = 0; i < 9; i++) {
+      value = savedValue(saved, 'Toggle' + i);
+      if (value !== undefined) {
+        sawToggle = true;
+        if (savedBool(value)) enabledMask |= (1 << i);
+        else enabledMask &= ~(1 << i);
+        localStorage.setItem('toggle' + i, savedBool(value) ? '1' : '0');
+      }
+    }
+    if (sawToggle) msg.EnabledMask = enabledMask;
+
+    if (Object.keys(msg).length) {
+      Pebble.sendAppMessage(msg, done, done);
+    } else {
+      done();
+    }
+  } catch (err) {
+    console.log('settings restore skipped: ' + err.message);
+    done();
+  }
+}
+
 Pebble.addEventListener('ready', function() {
   console.log('ClickyWeather PKJS ready');
   prepareUpdateCheckCache();
-  checkForUpdate('ready', false);
-  // Watch persist storage can be reset by an update/reinstall while Clay's
-  // saved settings survive. Restore the opt-in background interval without
-  // requiring the user to reopen and save settings.
-  try {
-    var saved = JSON.parse(localStorage.getItem('clay-settings') || '{}');
-    var storedInterval = saved.BackgroundUpdateInterval;
-    if (storedInterval && storedInterval.value !== undefined) {
-      storedInterval = storedInterval.value;
-    }
-    if (storedInterval !== undefined) {
-      Pebble.sendAppMessage({
-        BackgroundUpdateInterval: parseInt(storedInterval, 10) || 0
-      });
-    }
-  } catch (err) {
-    console.log('background interval restore skipped: ' + err.message);
-  }
+  restoreSavedSettings(function() {
+    checkForUpdate('ready', false);
+  });
 });
 
 Pebble.addEventListener('appmessage', function(e) {
   var payload = (e && e.payload) || {};
-  if (payload.ClockIs24h !== undefined) {
-    localStorage.setItem('clockIs24h', payload.ClockIs24h ? '1' : '0');
+  var clockIs24h = payloadValue(payload, 'ClockIs24h', undefined, messageKeys);
+  var refresh = payloadValue(payload, 'LastUpdated', undefined, messageKeys);
+  var seq = payloadValue(payload, 'RequestSeq', 0, messageKeys);
+  if (clockIs24h !== undefined) {
+    localStorage.setItem('clockIs24h', clockIs24h ? '1' : '0');
   }
-  if (payload.LastUpdated !== undefined) {
-    locateAndFetch();
+  if (refresh !== undefined) {
+    locateAndFetch(parseInt(seq, 10) || 0);
   }
 });
 
@@ -833,14 +842,14 @@ Pebble.addEventListener('webviewclosed', function(e) {
   
   // Handle card toggle settings and build EnabledMask.
   // Each bit in EnabledMask represents a card's enabled state (bit 0 = Toggle0, etc).
-  var enabledMask = 0;
+  var enabledMask = (1 << 9) - 1;
   for (var i = 0; i < 9; i++) {
     var key = 'Toggle' + i;
-    if (dict[key] !== undefined && dict[key].value) {
-      enabledMask |= (1 << i);
+    if (dict[key] !== undefined) {
+      if (dict[key].value) enabledMask |= (1 << i);
+      else enabledMask &= ~(1 << i);
+      localStorage.setItem('toggle' + i, dict[key].value ? '1' : '0');
     }
-    // Store in localStorage for persistence and reference
-    localStorage.setItem('toggle' + i, dict[key] && dict[key].value ? '1' : '0');
   }
   
   var msg = clay.getSettings(e.response);
@@ -849,6 +858,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   clay.setSettings('CheckForAppUpdate', 0);
   msg.EnabledMask = enabledMask;
   var needsFetch = weatherRelevantSnapshot() !== beforeSave;
+  msg.RefreshWeather = needsFetch ? 1 : 0;
   var updateIntervalChanged = getUpdateCheckInterval() !== previousUpdateInterval;
   if (updateIntervalChanged || checkForAppUpdate) {
     localStorage.removeItem(UPDATE_CHECK_TIME_KEY);
@@ -859,9 +869,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
     } else if (updateIntervalChanged) {
       checkForUpdate('settings', false);
     }
-    if (needsFetch) {
-      locateAndFetch();
-    } else {
+    if (!needsFetch) {
       console.log('settings saved without weather changes; fetch skipped');
     }
   }

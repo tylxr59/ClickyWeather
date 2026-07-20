@@ -5,6 +5,12 @@ shown once on the watch after an update and published as the matching GitHub
 Release notes. Keep the version synchronized with `package.json` and
 `src/pkjs/version.js`.
 
+## 1.4.0
+
+- Fixed location, precipitation-unit, air-quality, pollen, and weather-alert failure handling so the watch no longer presents fallback or stale values as current conditions.
+- Improved refresh reliability with request sequencing, explicit timeouts, parallel network requests, and complete settings restoration.
+- Added automated weather-data tests, reproducible release tooling, and clearer privacy documentation for every network service.
+
 ## 1.3.1
 
 - Added configurable app update checks with Never, every weather refresh, timed intervals, and a Check Now button.

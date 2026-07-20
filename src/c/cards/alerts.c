@@ -61,7 +61,7 @@ void card_alerts_draw(GContext *ctx, GRect bounds) {
         GRect(ox, mid_y - 12, W, 24),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     graphics_context_set_text_color(ctx, theme_muted());
-    graphics_draw_text(ctx, "No coverage for this region",
+    graphics_draw_text(ctx, "Coverage unavailable",
         fonts_get_system_font(FONT_KEY_GOTHIC_14),
         GRect(ox + UI_MARGIN_X, mid_y + 14, W - UI_MARGIN_X * 2, 20),
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
@@ -93,7 +93,7 @@ void card_alerts_draw(GContext *ctx, GRect bounds) {
 
   (void)H;
   ui_draw_auto_banner(ctx, bounds, d->rain_alert_min, d->last_updated,
-                      d->update_failed,
+                      d->fetch_error,
                       d->refresh_in_progress,
                       d->update_available,
                       anim_get_frame());

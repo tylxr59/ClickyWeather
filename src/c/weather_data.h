@@ -28,6 +28,13 @@ typedef enum {
   UNITS_METRIC = 1,
 } Units;
 
+typedef enum {
+  FETCH_ERROR_NONE = 0,
+  FETCH_ERROR_NETWORK = 1,
+  FETCH_ERROR_LOCATION = 2,
+  FETCH_ERROR_TIMEOUT = 3,
+} FetchError;
+
 typedef struct {
   int temp;            // current, in selected unit
   int feels_like;
@@ -37,8 +44,7 @@ typedef struct {
   int wind_speed;      // mph or km/h
   int wind_gust;       // mph or km/h (matches `units`)
   char wind_dir[4];    // "NW", "ENE", etc.
-  int precip_amount;   // mm×10 always from PKJS; render-time converts to
-                       // tenths-of-inch for imperial display
+  int precip_amount;   // tenths of the selected precipitation unit
   int humidity;        // %
   int dew_point;       // °F or °C (matches `units`)
   bool use_dew_point;  // true → main card shows dew point instead of humidity
@@ -51,10 +57,10 @@ typedef struct {
   int rain_alert_min;  // minutes until rain, -1 if none
   Units units;
   uint32_t last_updated; // unix seconds when last refresh was received
-  bool update_failed;    // true when the most recent PKJS refresh failed
+  FetchError fetch_error; // most recent refresh error; NONE after success
   bool refresh_in_progress; // true while PKJS is fetching fresh weather
   bool update_available; // true when GitHub has a newer tagged release
-  bool valid;          // true once real or mock data populated
+  bool valid;          // true once verified network or cached data exists
 
   // Phase 10A: Next 6 Hours card. Hours offset 1..6 from current hour.
   // Index 0 = +1h, index 5 = +6h. Hour 0 (now) lives on Main card.
@@ -64,7 +70,7 @@ typedef struct {
   uint8_t hours_pop[6];     // precipitation probability 0..100
   int  hours_wind[6];       // wind speed in selected unit (mph/kmh)
   char hours_wind_dir[6][4];// "NW", "ENE", etc.
-  int  hours_precip_x10[6]; // precip amount, tenths of in/mm (5 = 0.5)
+  int  hours_precip_x10[6]; // precipitation, tenths of selected unit
   int8_t hours_uv[6];        // UV index for +1h..+6h; -1 = unknown
 
   // Phase 10B: Week Ahead card. Day 0 = today, day 4 = today+4.
@@ -116,7 +122,7 @@ typedef struct {
   AlertCategory alert_category;
 } WeatherData;
 
-void weather_data_init_mock(void);
+void weather_data_init(void);
 WeatherData *weather_data_get(void);
 
 const char *uv_label(int uv);

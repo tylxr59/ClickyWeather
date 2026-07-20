@@ -1,5 +1,6 @@
 #pragma once
 #include <pebble.h>
+#include "weather_data.h"
 
 // Symmetric horizontal margin used by every card so left and right
 // padding always match. Tighter on rectangular displays where bezel
@@ -27,7 +28,8 @@ typedef enum {
 bool ui_draw_status_banner(GContext *ctx, GRect bounds,
                            StatusBannerMode mode,
                            int minutes_to_rain,
-                           uint32_t last_updated_secs);
+                           uint32_t last_updated_secs,
+                           FetchError fetch_error);
 
 // Convenience: pick a banner mode automatically given the data and
 // current animation frame. If a rain alert is present we alternate
@@ -36,7 +38,7 @@ bool ui_draw_status_banner(GContext *ctx, GRect bounds,
 bool ui_draw_auto_banner(GContext *ctx, GRect bounds,
                          int minutes_to_rain,
                          uint32_t last_updated_secs,
-                         bool update_failed,
+                         FetchError fetch_error,
                          bool refresh_in_progress,
                          bool update_available,
                          uint32_t frame);

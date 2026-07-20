@@ -51,6 +51,17 @@ at the configured frequency (daily by default) or when requested manually; they
 do not include location or an app-added device identifier. No upstream analytics
 or tracking changes will be accepted.
 
+| Destination | Data sent | When and why |
+| --- | --- | --- |
+| `api.open-meteo.com` | Selected coordinates and unit preferences | Retrieves current conditions and forecasts after a refresh. |
+| `air-quality-api.open-meteo.com` | Selected coordinates | Retrieves air quality and, where covered, pollen conditions after a refresh. |
+| `api.weather.gov` | Selected coordinates, only for US locations | Retrieves active National Weather Service alerts after a refresh. |
+| `api.github.com` | No location or app-added device identifier | Checks the latest ClickyWeather release at the configured frequency or on request. |
+
+The selected coordinates come from the optional manual override or the paired
+phone's location result. If neither is available, ClickyWeather reports a
+location error and does not substitute another city.
+
 ## Screenshots
 
 Current checked-in screenshots are for **emery**. Use UP/DOWN to move between cards.
@@ -117,13 +128,16 @@ No legacy Pebble targets are included.
 ## Troubleshooting
 
 - If weather does not load, confirm that the paired phone has internet and location access.
-- If alerts show `NO DATA`, the configured location may be outside the US National Weather Service coverage area.
+- If the watch shows `LOCATION ERROR`, grant phone location access or enter a valid `lat,lon` override in settings.
+- If the watch shows `PHONE TIMEOUT`, confirm the phone is connected and press SELECT to retry.
+- If alerts show `NO DATA`, the location may be outside National Weather Service coverage or the alert service may be temporarily unavailable.
 - If card changes do not appear, reopen settings and save the card selection again.
 
 ## Development
 
 ```bash
 npm ci
+npm test
 npm run build
 ```
 
@@ -146,7 +160,7 @@ The compiled package is written to `build/ClickyWeather.pbw`.
 Every release has a newest-first entry in `CHANGELOG.md`. Its bullets appear once
 on the watch after the update and are also used as the GitHub Release notes.
 
-Pushing a version tag such as `v1.3.1` runs the GitHub Actions release workflow. The workflow verifies that the tag matches `CHANGELOG.md`, `package.json`, and `src/pkjs/version.js`, builds the PBW, uploads it as a workflow artifact, and attaches it to the matching GitHub Release. Because ClickyWeather is distributed outside the Pebble Appstore, configurable phone-side checks can query GitHub Releases and display `UPDATE AVAILABLE` when a newer tagged PBW can be downloaded.
+Pushing a version tag such as `v1.4.0` runs the GitHub Actions release workflow. The workflow verifies that the tag matches `CHANGELOG.md`, `package.json`, both version fields in `package-lock.json`, and `src/pkjs/version.js`; runs the tests with pinned Pebble tooling; builds the PBW; uploads it as a workflow artifact; and attaches it to the matching GitHub Release. Because ClickyWeather is distributed outside the Pebble Appstore, configurable phone-side checks can query GitHub Releases and display `UPDATE AVAILABLE` when a newer tagged PBW can be downloaded.
 
 To repair a missing or outdated PBW for an existing tag, open **Actions → Release PBW → Run workflow** and enter that tag. Manual runs check out the exact tag before rebuilding and replacing the release asset. Release current code with a new version and tag instead of reusing an older tag.
 
@@ -155,6 +169,7 @@ To repair a missing or outdated PBW for an existing tag, open **Actions → Rele
 ```text
 src/c/                 Pebble C app, weather cards, navigation, and UI
 src/pkjs/              PebbleKitJS weather requests, settings, and version check
+tests/                 PKJS utility and mocked bridge/network integration tests
 CHANGELOG.md            Release notes used by the watch and GitHub Releases
 resources/images/      Pebble menu icon
 screenshots/           Checked-in Pebble Time 2 screenshots
