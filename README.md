@@ -85,6 +85,24 @@ Current checked-in screenshots are for **emery**. Use UP/DOWN to move between ca
     <td><img src="screenshots/emery%20-%20precipitation.png" width="144"></td>
     <td><img src="screenshots/emery%20-%20weather%20alerts.png" width="144"></td>
   </tr>
+  <tr>
+    <th>UV</th>
+    <th>Air Quality</th>
+    <th>Sun Cycle</th>
+  </tr>
+  <tr>
+    <td><img src="screenshots/emery%20-%20uv.png" width="144"></td>
+    <td><img src="screenshots/emery%20-%20air%20quality.png" width="144"></td>
+    <td><img src="screenshots/emery%20-%20sun%20cycle.png" width="144"></td>
+  </tr>
+  <tr>
+    <th>Night Sky</th>
+    <th>Golden Hour</th>
+  </tr>
+  <tr>
+    <td><img src="screenshots/emery%20-%20night%20sky.png" width="144"></td>
+    <td><img src="screenshots/emery%20-%20golden%20hour.png" width="144"></td>
+  </tr>
 </table>
 
 ## Setup
